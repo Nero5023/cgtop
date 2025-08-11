@@ -20,7 +20,7 @@ use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     io,
     path::PathBuf,
-    time::{Duration, Instant},
+    time::Instant,
 };
 
 // we need to normalize the path to remove the trailing slash
