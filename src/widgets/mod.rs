@@ -457,47 +457,69 @@ impl ResourceGraphWidget {
         let content = if let Some(ref metrics) = app.cgroup_data.metrics {
             if let Some(selected_path) = &app.ui_state.selected_cgroup {
                 if let Some(stats) = metrics.resource_usage.get(selected_path) {
+                    let header = format!("Selected cgroup: {}", selected_path);
+                    
+                    let memory_overview = format!(
+                        "MEMORY OVERVIEW:\n\
+                        • Current: {current} | Peak: {peak}\n\
+                        • Limit: {limit}",
+                        current = format_bytes(stats.memory.current),
+                        peak = format_bytes(stats.memory.peak),
+                        limit = stats.memory.max.map_or("unlimited".to_string(), |m| format_bytes(m))
+                    );
+                    
+                    let memory_breakdown = format!(
+                        "MEMORY BREAKDOWN (memory.stat):\n\
+                        • Anonymous (heap/stack): {anon}\n\
+                        • File Cache: {file}\n\
+                        • Kernel Stack: {kernel_stack}\n\
+                        • Slab (kernel structures): {slab}\n\
+                        • Socket Buffers: {sock}",
+                        anon = format_bytes(stats.memory.anon),
+                        file = format_bytes(stats.memory.file),
+                        kernel_stack = format_bytes(stats.memory.kernel_stack),
+                        slab = format_bytes(stats.memory.slab),
+                        sock = format_bytes(stats.memory.sock)
+                    );
+                    
+                    let memory_activity = format!(
+                        "MEMORY ACTIVITY:\n\
+                        • Active Anonymous: {active_anon}\n\
+                        • Inactive Anonymous: {inactive_anon}\n\
+                        • Active File Cache: {active_file}\n\
+                        • Inactive File Cache: {inactive_file}",
+                        active_anon = format_bytes(stats.memory.active_anon),
+                        inactive_anon = format_bytes(stats.memory.inactive_anon),
+                        active_file = format_bytes(stats.memory.active_file),
+                        inactive_file = format_bytes(stats.memory.inactive_file)
+                    );
+                    
+                    let page_faults = format!(
+                        "PAGE FAULTS:\n\
+                        • Total: {total} | Major: {major}",
+                        total = stats.memory.pgfault,
+                        major = stats.memory.pgmajfault
+                    );
+                    
+                    let other_resources = format!(
+                        "OTHER RESOURCES:\n\
+                        • CPU Time: {cpu_time}\n\
+                        • IO Read/Write: {io_read} / {io_write}\n\
+                        • PIDs: {pids}",
+                        cpu_time = format_duration_usec(stats.cpu.usage_usec),
+                        io_read = format_bytes(stats.io.rbytes),
+                        io_write = format_bytes(stats.io.wbytes),
+                        pids = stats.pids.current
+                    );
+                    
                     format!(
-                        "Selected cgroup: {}\n\n\
-                        MEMORY OVERVIEW:\n\
-                        • Current: {} | Peak: {}\n\
-                        • Limit: {}\n\n\
-                        MEMORY BREAKDOWN (memory.stat):\n\
-                        • Anonymous (heap/stack): {}\n\
-                        • File Cache: {}\n\
-                        • Kernel Stack: {}\n\
-                        • Slab (kernel structures): {}\n\
-                        • Socket Buffers: {}\n\n\
-                        MEMORY ACTIVITY:\n\
-                        • Active Anonymous: {}\n\
-                        • Inactive Anonymous: {}\n\
-                        • Active File Cache: {}\n\
-                        • Inactive File Cache: {}\n\n\
-                        PAGE FAULTS:\n\
-                        • Total: {} | Major: {}\n\n\
-                        OTHER RESOURCES:\n\
-                        • CPU Time: {}\n\
-                        • IO Read/Write: {} / {}\n\
-                        • PIDs: {}",
-                        selected_path,
-                        format_bytes(stats.memory.current),
-                        format_bytes(stats.memory.peak),
-                        stats.memory.max.map_or("unlimited".to_string(), |m| format_bytes(m)),
-                        format_bytes(stats.memory.anon),
-                        format_bytes(stats.memory.file),
-                        format_bytes(stats.memory.kernel_stack),
-                        format_bytes(stats.memory.slab),
-                        format_bytes(stats.memory.sock),
-                        format_bytes(stats.memory.active_anon),
-                        format_bytes(stats.memory.inactive_anon),
-                        format_bytes(stats.memory.active_file),
-                        format_bytes(stats.memory.inactive_file),
-                        stats.memory.pgfault,
-                        stats.memory.pgmajfault,
-                        format_duration_usec(stats.cpu.usage_usec),
-                        format_bytes(stats.io.rbytes),
-                        format_bytes(stats.io.wbytes),
-                        stats.pids.current
+                        "{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",
+                        header,
+                        memory_overview,
+                        memory_breakdown,
+                        memory_activity,
+                        page_faults,
+                        other_resources
                     )
                 } else {
                     "Selected cgroup not found".to_string()
