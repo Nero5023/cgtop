@@ -16,12 +16,13 @@ A terminal user interface (TUI) application for monitoring cgroup v2 (Control Gr
 
 ## Features Implemented
 
-### Core Architecture
-- **Multi-threaded Event-driven Architecture**
-  - Main Thread: UI Rendering
-  - Input Thread: Event Handling
-  - Collection Thread: Data Gathering
-  - Cleanup Thread: Data Retention Management
+### Core Architecture  
+- **Event-driven Multi-threaded Architecture** (Bottom-style)
+  - **Main Thread**: UI Rendering and Event Processing Only
+  - **Input Thread**: Keyboard/Mouse Event Capture → CGroupEvents
+  - **Collection Thread**: cgroup Data Collection → Update Events
+  - **Cleanup Thread**: Periodic Cleanup → Clean Events
+  - **Event System**: Unified `CGroupEvent` enum with channel communication
 
 ### Data Collection
 - cgroup v2 filesystem parsing (`/sys/fs/cgroup`)
@@ -36,13 +37,20 @@ A terminal user interface (TUI) application for monitoring cgroup v2 (Control Gr
 - Status bar with system information
 
 ### Keyboard Controls
-- `q` / `Esc`: Quit application ✅ **FIXED - No longer hangs!**
-- `r`: Manual refresh
+- `q` / `Esc`: Quit application ✅ **WORKING - Instant response!**
+- `r`: Manual refresh (background collection continues automatically)
 - `j` / `↓`: Navigate down
 - `k` / `↑`: Navigate up  
 - `Tab`: Switch between panels
 - `Enter`: Select/expand cgroup
 - `?`: Help (placeholder)
+
+### Key Improvements ✨
+- **🚀 Performance**: Multi-threaded design prevents UI blocking
+- **⚡ Responsiveness**: Input thread ensures instant key response
+- **🔄 Auto-refresh**: Background data collection every 2 seconds
+- **🛡️ Reliability**: Proper thread coordination and clean shutdown
+- **📦 Fallback**: Mock data when cgroups unavailable (demos, containers)
 
 ## Building
 
@@ -58,29 +66,53 @@ cargo run
 
 **Note:** The application will attempt to read from `/sys/fs/cgroup` to collect cgroup v2 information. If cgroups are not available (e.g., in containers or restricted environments), the application will automatically use mock data for demonstration purposes.
 
-## ✅ Recent Fixes
+## ✅ Recent Fixes & Improvements
+
+### Multi-threaded Event Architecture - IMPLEMENTED
+- **Improvement**: Refactored from single-threaded to proper event-driven architecture
+- **Inspiration**: Follows Bottom's proven multi-threaded event system design
+- **Benefits**: Clean separation of concerns, better performance, proper thread coordination
+- **Implementation**: 
+  - `CGroupEvent` enum for all inter-thread communication
+  - Dedicated input thread with crossterm event polling
+  - Background data collection with automatic fallback
+  - Event-driven main loop with timeout handling
 
 ### Quit Hanging Issue - RESOLVED
 - **Problem**: Pressing 'q' would hang the application
-- **Cause**: Competing input handling between multiple threads + infinite background loops
-- **Solution**: Simplified to single-threaded architecture with direct input polling
-- **Result**: 'q' and 'Esc' now work instantly
+- **Solution**: Input thread properly sends `Terminate` events and exits cleanly
+- **Result**: 'q' and 'Esc' now work instantly with proper thread shutdown
 
 ### "Always Loading" Issue - RESOLVED  
 - **Problem**: UI always showed "Loading..." even when data was available
-- **Cause**: cgroup filesystem not accessible + timing issues in data collection
-- **Solution**: Added mock data fallback + fixed collection timing logic
-- **Result**: UI now displays data (real or mock) immediately on startup
+- **Solution**: Background collection thread sends `Update` events with data/fallback
+- **Result**: UI displays data immediately and updates every 2 seconds automatically
 
 ## Architecture
 
-The application follows a clean separation of concerns:
+### Event Flow (Bottom-inspired)
+```
+┌─────────────────┐    ┌──────────────────────┐    ┌─────────────────┐
+│   Input Thread  │    │     Main Thread      │    │Collection Thread│
+│                 │───→│                      │←───│                 │
+│ • Keyboard      │    │ • UI Rendering       │    │ • cgroup Data   │
+│ • Mouse         │    │ • Event Processing   │    │ • Process Map   │
+│ • Terminal      │    │ • State Updates      │    │ • Auto-refresh  │
+└─────────────────┘    └──────────────────────┘    └─────────────────┘
+         │                        │                          │
+         ▼                        ▼                          ▼
+    CGroupEvent::              CGroupEvent::              CGroupEvent::
+    KeyInput(key)              Update(metrics)           Update(metrics)
+    Terminate                                            Clean
+```
 
+### Module Structure
 - `src/app/`: Application state management
+- `src/events/`: Event system (`CGroupEvent` enum and utilities)
+- `src/threads/`: Multi-threaded event workers
 - `src/collection/`: cgroup v2 data collection and parsing
 - `src/canvas/`: UI rendering and layout
 - `src/widgets/`: Individual UI widget implementations
-- `src/threads/`: Multi-threaded coordination
 
 ## Dependencies
 

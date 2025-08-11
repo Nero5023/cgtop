@@ -1,8 +1,11 @@
 mod app;
 mod canvas;
 mod collection;
+mod events;
 mod threads;
 mod widgets;
+use events::CGroupEvent;
+use threads::EventThreads;
 
 use anyhow::Result;
 use app::App;
@@ -198,20 +201,25 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
     let mut last_data_collection = Instant::now();
     let tick_rate = Duration::from_millis(250);
 
+    let mut event_threads = EventThreads::new();
+    let event_rx = event_threads.start()?;
+
     loop {
         terminal.draw(|f| Canvas::draw(f, app))?;
 
-        // Process input events directly
-        if crossterm::event::poll(Duration::from_millis(0))? {
-            if let crossterm::event::Event::Key(key_event) = crossterm::event::read()? {
-                match key_event.code {
-                    crossterm::event::KeyCode::Char('q') | crossterm::event::KeyCode::Esc => {
+        match event_rx.recv() {
+            Ok(event) => match event {
+                CGroupEvent::KeyInput(key_event) => {
+                    if event.is_quit_key() {
                         return Ok(());
                     }
-                    _ => {
-                        handle_key_event(app, key_event);
-                    }
+                    handle_key_event(app, key_event);
                 }
+                CGroupEvent::UpdateDummy => {}
+                _ => {}
+            },
+            Err(e) => {
+                log::error!("Error receiving event: {:?}", e);
             }
         }
 

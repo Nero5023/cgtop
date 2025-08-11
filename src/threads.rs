@@ -9,7 +9,53 @@ use std::{
 use crate::{
     app::InputEvent,
     collection::{CGroupCollector, CGroupMetrics},
+    events::CGroupEvent,
 };
+
+use crossterm::event::Event;
+use crossterm::event::KeyEventKind;
+use std::thread::JoinHandle;
+
+pub struct EventThreads {
+    input_handle: Option<JoinHandle<()>>,
+    collection_handle: Option<JoinHandle<()>>,
+    cleanup_handle: Option<JoinHandle<()>>,
+}
+
+impl EventThreads {
+    pub fn new() -> Self {
+        Self {
+            input_handle: None,
+            collection_handle: None,
+            cleanup_handle: None,
+        }
+    }
+
+    pub fn start(&mut self) -> Result<Receiver<CGroupEvent>> {
+        let (event_tx, event_rx) = unbounded::<CGroupEvent>();
+
+        let event_tx0 = event_tx.clone();
+        // Start input thread
+        self.input_handle = Some(thread::spawn(move || {
+            input_thread_worker(event_tx0);
+        }));
+
+        let event_tx1 = event_tx.clone();
+
+        self.collection_handle = Some(thread::spawn(move || {
+            loop {
+                // sleep for 100ms
+                // TODO: use the proper collection logic
+                thread::sleep(Duration::from_millis(100));
+                if let Err(e) = event_tx1.send(CGroupEvent::UpdateDummy) {
+                    break;
+                }
+            }
+        }));
+
+        Ok(event_rx)
+    }
+}
 
 pub struct ThreadManager {
     pub input_handle: Option<thread::JoinHandle<()>>,
@@ -26,9 +72,7 @@ impl ThreadManager {
         }
     }
 
-    pub fn start_threads(
-        &mut self,
-    ) -> Result<(Receiver<InputEvent>, Receiver<CGroupMetrics>)> {
+    pub fn start_threads(&mut self) -> Result<(Receiver<InputEvent>, Receiver<CGroupMetrics>)> {
         // Create channels
         let (input_tx, input_rx) = unbounded::<InputEvent>();
         let (data_tx, data_rx) = unbounded::<CGroupMetrics>();
@@ -36,7 +80,7 @@ impl ThreadManager {
 
         // Start input thread
         self.input_handle = Some(thread::spawn(move || {
-            input_thread_worker(input_tx);
+            // input_thread_worker(input_tx);
         }));
 
         // Start collection thread
@@ -73,14 +117,26 @@ pub enum CleanupMessage {
     Shutdown,
 }
 
-fn input_thread_worker(_sender: Sender<InputEvent>) {
-    log::info!("Input thread started (disabled - input handled in main thread)");
-    
-    // Input thread is now disabled since we handle input directly in main thread
-    // This avoids the conflict between crossterm event polling in different threads
-    // Just wait for a reasonable time and exit
-    std::thread::sleep(Duration::from_millis(100));
-    
+fn input_thread_worker(sender: Sender<CGroupEvent>) {
+    log::info!("Input thread started)");
+
+    loop {
+        if let Ok(pool) = crossterm::event::poll(Duration::from_millis(20)) {
+            if pool {
+                if let Ok(event) = crossterm::event::read() {
+                    match event {
+                        Event::Key(key_event) if key_event.kind == KeyEventKind::Press => {
+                            if sender.send(CGroupEvent::KeyInput(key_event)).is_err() {
+                                break;
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+            }
+        }
+    }
+
     log::info!("Input thread stopped");
 }
 
@@ -89,7 +145,7 @@ fn collection_thread_worker(
     cleanup_sender: Sender<CleanupMessage>,
 ) {
     log::info!("Collection thread started");
-    
+
     let cgroup_root = PathBuf::from("/sys/fs/cgroup");
     let collection_interval = Duration::from_secs(1);
     let collector = CGroupCollector::new(cgroup_root, collection_interval, data_sender.clone());
@@ -133,7 +189,7 @@ fn collection_thread_worker(
 
 fn cleanup_thread_worker(receiver: Receiver<CleanupMessage>) {
     log::info!("Cleanup thread started");
-    
+
     loop {
         match receiver.recv() {
             Ok(CleanupMessage::OldData(cutoff_time)) => {
@@ -150,6 +206,6 @@ fn cleanup_thread_worker(receiver: Receiver<CleanupMessage>) {
             }
         }
     }
-    
+
     log::info!("Cleanup thread stopped");
 }
