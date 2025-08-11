@@ -164,7 +164,7 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
             app.ui_state.current_tab = (app.ui_state.current_tab + 1) % 3;
             log::info!("Switched to tab {}", app.ui_state.current_tab);
         }
-        KeyCode::Enter | KeyCode::Right => {
+        KeyCode::Enter | KeyCode::Right | KeyCode::Char(' ') => {
             // Expand/collapse selected node
             if let Some(selected) = app.ui_state.tree_state.selected.clone() {
                 app.ui_state.tree_state.toggle_expand(&selected);
