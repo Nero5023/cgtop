@@ -1,6 +1,6 @@
+use crate::collection::CGroupMetrics;
 use crossbeam::channel::Receiver;
 use std::time::Instant;
-use crate::collection::CGroupMetrics;
 
 pub struct App {
     pub cgroup_data: CGroupData,
@@ -13,7 +13,7 @@ pub struct App {
 
 #[derive(Default)]
 pub struct CGroupData {
-    pub metrics: Option<CGroupMetrics>,
+    pub metrics: Option<Box<CGroupMetrics>>,
     pub last_update: Option<Instant>,
 }
 
@@ -54,8 +54,12 @@ impl App {
             data_receiver: None,
         }
     }
-    
-    pub fn set_channels(&mut self, input_rx: Receiver<InputEvent>, data_rx: Receiver<CGroupMetrics>) {
+
+    pub fn set_channels(
+        &mut self,
+        input_rx: Receiver<InputEvent>,
+        data_rx: Receiver<CGroupMetrics>,
+    ) {
         self.input_receiver = Some(input_rx);
         self.data_receiver = Some(data_rx);
     }

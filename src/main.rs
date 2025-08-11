@@ -74,7 +74,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                     let cgroup_count = metrics.resource_usage.len();
                     let process_count = metrics.processes.len();
 
-                    app.cgroup_data.metrics = Some(*metrics);
+                    app.cgroup_data.metrics = Some(metrics);
                     app.cgroup_data.last_update = Some(Instant::now());
 
                     log::info!(
