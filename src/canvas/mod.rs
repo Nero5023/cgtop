@@ -56,17 +56,11 @@ impl Canvas {
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
-        let left_chunks = Layout::default()
-            .direction(Direction::Vertical)
-            .constraints([Constraint::Percentage(70), Constraint::Percentage(30)])
-            .split(main_chunks[0]);
+        // Left side: cgroup tree
+        CGroupTreeWidget::draw(f, app, &app.ui_state.tree_state, main_chunks[0]);
 
-        // Left side: cgroup tree and resource graphs
-        CGroupTreeWidget::draw(f, app, &app.ui_state.tree_state, left_chunks[0]);
-        ResourceGraphWidget::draw(f, app, left_chunks[1]);
-
-        // Right side: process list
-        ProcessListWidget::draw(f, app, main_chunks[1]);
+        // Right side: resource usage
+        ResourceGraphWidget::draw(f, app, main_chunks[1]);
     }
 
     fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
