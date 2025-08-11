@@ -59,6 +59,8 @@ pub struct MemoryStats {
     pub active_anon: u64,    // Active anonymous memory
     pub inactive_file: u64,  // Inactive file cache
     pub active_file: u64,    // Active file cache
+    // memory.pressure fields (PSI - Pressure Stall Information)
+    pub pressure: Option<MemoryPressure>,
 }
 
 #[derive(Debug, Clone, Default)]
@@ -68,6 +70,20 @@ pub struct MemoryEvents {
     pub max: u64,
     pub oom: u64,
     pub oom_kill: u64,
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MemoryPressure {
+    // PSI "some" metrics (at least one task delayed)
+    pub some_avg10: f64,    // 10-second average percentage
+    pub some_avg60: f64,    // 1-minute average percentage
+    pub some_avg300: f64,   // 5-minute average percentage
+    pub some_total: u64,    // Total time in microseconds
+    // PSI "full" metrics (all tasks delayed)
+    pub full_avg10: f64,    // 10-second average percentage
+    pub full_avg60: f64,    // 1-minute average percentage
+    pub full_avg300: f64,   // 5-minute average percentage
+    pub full_total: u64,    // Total time in microseconds
 }
 
 #[derive(Debug, Clone, Default)]
@@ -210,7 +226,59 @@ impl CGroupCollector {
             }
         }
 
+        // Read memory.pressure for PSI (Pressure Stall Information)
+        if let Ok(content) = fs::read_to_string(cgroup_path.join("memory.pressure")) {
+            memory_stats.pressure = Some(self.parse_pressure_stats(&content));
+        }
+
         Ok(memory_stats)
+    }
+
+    fn parse_pressure_stats(&self, content: &str) -> MemoryPressure {
+        let mut pressure = MemoryPressure::default();
+        
+        // Example memory.pressure format:
+        // some avg10=0.00 avg60=0.00 avg300=0.00 total=0
+        // full avg10=0.00 avg60=0.00 avg300=0.00 total=0
+        
+        for line in content.lines() {
+            let parts: Vec<&str> = line.split_whitespace().collect();
+            if parts.len() >= 5 {
+                match parts[0] {
+                    "some" => {
+                        // Parse some metrics
+                        for part in &parts[1..] {
+                            if let Some((key, value)) = part.split_once('=') {
+                                match key {
+                                    "avg10" => pressure.some_avg10 = value.parse().unwrap_or(0.0),
+                                    "avg60" => pressure.some_avg60 = value.parse().unwrap_or(0.0),
+                                    "avg300" => pressure.some_avg300 = value.parse().unwrap_or(0.0),
+                                    "total" => pressure.some_total = value.parse().unwrap_or(0),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    "full" => {
+                        // Parse full metrics
+                        for part in &parts[1..] {
+                            if let Some((key, value)) = part.split_once('=') {
+                                match key {
+                                    "avg10" => pressure.full_avg10 = value.parse().unwrap_or(0.0),
+                                    "avg60" => pressure.full_avg60 = value.parse().unwrap_or(0.0),
+                                    "avg300" => pressure.full_avg300 = value.parse().unwrap_or(0.0),
+                                    "total" => pressure.full_total = value.parse().unwrap_or(0),
+                                    _ => {}
+                                }
+                            }
+                        }
+                    }
+                    _ => {}
+                }
+            }
+        }
+        
+        pressure
     }
 
     pub fn read_cpu_stats(&self, cgroup_path: &Path) -> Result<CpuStats> {

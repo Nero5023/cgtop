@@ -501,6 +501,28 @@ impl ResourceGraphWidget {
                         major = stats.memory.pgmajfault
                     );
                     
+                    let memory_pressure = if let Some(ref pressure) = stats.memory.pressure {
+                        format!(
+                            "MEMORY PRESSURE (PSI):\n\
+                            • Some Tasks Delayed:\n\
+                            \x20\x20- 10s: {some_avg10}% | 1m: {some_avg60}% | 5m: {some_avg300}%\n\
+                            \x20\x20- Total: {some_total_ms}ms\n\
+                            • All Tasks Delayed:\n\
+                            \x20\x20- 10s: {full_avg10}% | 1m: {full_avg60}% | 5m: {full_avg300}%\n\
+                            \x20\x20- Total: {full_total_ms}ms",
+                            some_avg10 = pressure.some_avg10,
+                            some_avg60 = pressure.some_avg60,
+                            some_avg300 = pressure.some_avg300,
+                            some_total_ms = pressure.some_total / 1000, // Convert microseconds to milliseconds
+                            full_avg10 = pressure.full_avg10,
+                            full_avg60 = pressure.full_avg60,
+                            full_avg300 = pressure.full_avg300,
+                            full_total_ms = pressure.full_total / 1000, // Convert microseconds to milliseconds
+                        )
+                    } else {
+                        "MEMORY PRESSURE (PSI):\n• Not available (memory.pressure file not found)".to_string()
+                    };
+                    
                     let other_resources = format!(
                         "OTHER RESOURCES:\n\
                         • CPU Time: {cpu_time}\n\
@@ -513,12 +535,13 @@ impl ResourceGraphWidget {
                     );
                     
                     format!(
-                        "{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",
+                        "{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",
                         header,
                         memory_overview,
                         memory_breakdown,
                         memory_activity,
                         page_faults,
+                        memory_pressure,
                         other_resources
                     )
                 } else {
