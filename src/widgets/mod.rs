@@ -458,10 +458,42 @@ impl ResourceGraphWidget {
             if let Some(selected_path) = &app.ui_state.selected_cgroup {
                 if let Some(stats) = metrics.resource_usage.get(selected_path) {
                     format!(
-                        "Selected cgroup: {}\n\nMemory Current: {}\nMemory Peak: {}\nCPU Time: {}\nIO Read: {} | Write: {}\nPIDs: {}",
+                        "Selected cgroup: {}\n\n\
+                        MEMORY OVERVIEW:\n\
+                        • Current: {} | Peak: {}\n\
+                        • Limit: {}\n\n\
+                        MEMORY BREAKDOWN (memory.stat):\n\
+                        • Anonymous (heap/stack): {}\n\
+                        • File Cache: {}\n\
+                        • Kernel Stack: {}\n\
+                        • Slab (kernel structures): {}\n\
+                        • Socket Buffers: {}\n\n\
+                        MEMORY ACTIVITY:\n\
+                        • Active Anonymous: {}\n\
+                        • Inactive Anonymous: {}\n\
+                        • Active File Cache: {}\n\
+                        • Inactive File Cache: {}\n\n\
+                        PAGE FAULTS:\n\
+                        • Total: {} | Major: {}\n\n\
+                        OTHER RESOURCES:\n\
+                        • CPU Time: {}\n\
+                        • IO Read/Write: {} / {}\n\
+                        • PIDs: {}",
                         selected_path,
                         format_bytes(stats.memory.current),
                         format_bytes(stats.memory.peak),
+                        stats.memory.max.map_or("unlimited".to_string(), |m| format_bytes(m)),
+                        format_bytes(stats.memory.anon),
+                        format_bytes(stats.memory.file),
+                        format_bytes(stats.memory.kernel_stack),
+                        format_bytes(stats.memory.slab),
+                        format_bytes(stats.memory.sock),
+                        format_bytes(stats.memory.active_anon),
+                        format_bytes(stats.memory.inactive_anon),
+                        format_bytes(stats.memory.active_file),
+                        format_bytes(stats.memory.inactive_file),
+                        stats.memory.pgfault,
+                        stats.memory.pgmajfault,
                         format_duration_usec(stats.cpu.usage_usec),
                         format_bytes(stats.io.rbytes),
                         format_bytes(stats.io.wbytes),

@@ -47,6 +47,18 @@ pub struct MemoryStats {
     pub max: Option<u64>,
     pub peak: u64,
     pub events: MemoryEvents,
+    // memory.stat fields
+    pub anon: u64,           // Anonymous memory (heap, stack)
+    pub file: u64,           // File cache memory
+    pub kernel_stack: u64,   // Kernel stack memory
+    pub slab: u64,           // Kernel data structures
+    pub sock: u64,           // Network buffer memory
+    pub pgfault: u64,        // Total page faults
+    pub pgmajfault: u64,     // Major page faults
+    pub inactive_anon: u64,  // Inactive anonymous memory
+    pub active_anon: u64,    // Active anonymous memory
+    pub inactive_file: u64,  // Inactive file cache
+    pub active_file: u64,    // Active file cache
 }
 
 #[derive(Debug, Clone, Default)]
@@ -173,6 +185,29 @@ impl CGroupCollector {
         // Read memory.peak
         if let Ok(content) = fs::read_to_string(cgroup_path.join("memory.peak")) {
             memory_stats.peak = content.trim().parse().unwrap_or(0);
+        }
+
+        // Read memory.stat for detailed breakdown
+        if let Ok(content) = fs::read_to_string(cgroup_path.join("memory.stat")) {
+            for line in content.lines() {
+                let parts: Vec<&str> = line.split_whitespace().collect();
+                if parts.len() >= 2 {
+                    match parts[0] {
+                        "anon" => memory_stats.anon = parts[1].parse().unwrap_or(0),
+                        "file" => memory_stats.file = parts[1].parse().unwrap_or(0),
+                        "kernel_stack" => memory_stats.kernel_stack = parts[1].parse().unwrap_or(0),
+                        "slab" => memory_stats.slab = parts[1].parse().unwrap_or(0),
+                        "sock" => memory_stats.sock = parts[1].parse().unwrap_or(0),
+                        "pgfault" => memory_stats.pgfault = parts[1].parse().unwrap_or(0),
+                        "pgmajfault" => memory_stats.pgmajfault = parts[1].parse().unwrap_or(0),
+                        "inactive_anon" => memory_stats.inactive_anon = parts[1].parse().unwrap_or(0),
+                        "active_anon" => memory_stats.active_anon = parts[1].parse().unwrap_or(0),
+                        "inactive_file" => memory_stats.inactive_file = parts[1].parse().unwrap_or(0),
+                        "active_file" => memory_stats.active_file = parts[1].parse().unwrap_or(0),
+                        _ => {}
+                    }
+                }
+            }
         }
 
         Ok(memory_stats)
