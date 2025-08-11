@@ -49,7 +49,7 @@ impl Canvas {
             .split(main_chunks[0]);
 
         // Left side: cgroup tree and resource graphs
-        CGroupTreeWidget::draw(f, app, left_chunks[0]);
+        CGroupTreeWidget::draw(f, app, &app.ui_state.tree_state, left_chunks[0]);
         ResourceGraphWidget::draw(f, app, left_chunks[1]);
 
         // Right side: process list

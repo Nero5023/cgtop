@@ -1,4 +1,5 @@
 use crate::collection::CGroupMetrics;
+use crate::widgets::CGroupTreeState;
 use crossbeam::channel::Receiver;
 use std::time::Instant;
 
@@ -20,7 +21,7 @@ pub struct CGroupData {
 #[derive(Default)]
 pub struct UiState {
     pub current_tab: usize,
-    pub tree_expanded: Vec<String>,
+    pub tree_state: CGroupTreeState,
     pub selected_cgroup: Option<String>,
     pub scroll_offset: usize,
 }

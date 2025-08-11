@@ -74,6 +74,13 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
                     let cgroup_count = metrics.resource_usage.len();
                     let process_count = metrics.processes.len();
 
+                    // Update tree state with new data
+                    app.ui_state
+                        .tree_state
+                        .build_from_paths(&metrics.resource_usage);
+
+                    // log::info!("metrics.resource_usage: {:?}", metrics.resource_usage);
+
                     app.cgroup_data.metrics = Some(metrics);
                     app.cgroup_data.last_update = Some(Instant::now());
 
@@ -103,20 +110,50 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
         }
         KeyCode::Char('j') | KeyCode::Down => {
             // Navigate down in the tree
-            app.ui_state.scroll_offset = app.ui_state.scroll_offset.saturating_add(1);
+            app.ui_state.tree_state.select_next();
+            // Update selected cgroup for resource display
+            app.ui_state.selected_cgroup = app
+                .ui_state
+                .tree_state
+                .selected
+                .clone()
+                .and_then(|path| app.ui_state.tree_state.nodes.get(&path))
+                .map(|node| node.path.clone());
         }
         KeyCode::Char('k') | KeyCode::Up => {
             // Navigate up in the tree
-            app.ui_state.scroll_offset = app.ui_state.scroll_offset.saturating_sub(1);
+            app.ui_state.tree_state.select_previous();
+            // Update selected cgroup for resource display
+            app.ui_state.selected_cgroup = app
+                .ui_state
+                .tree_state
+                .selected
+                .clone()
+                .and_then(|path| app.ui_state.tree_state.nodes.get(&path))
+                .map(|node| node.path.clone());
         }
         KeyCode::Tab => {
             // Switch between tabs/panels
             app.ui_state.current_tab = (app.ui_state.current_tab + 1) % 3;
             log::info!("Switched to tab {}", app.ui_state.current_tab);
         }
-        KeyCode::Enter => {
-            // Select/expand cgroup (placeholder)
-            log::info!("Enter pressed - toggle selection");
+        KeyCode::Enter | KeyCode::Right => {
+            // Expand/collapse selected node
+            if let Some(selected) = app.ui_state.tree_state.selected.clone() {
+                app.ui_state.tree_state.toggle_expand(&selected);
+                log::info!("Toggled expand for: {}", selected);
+            }
+        }
+        KeyCode::Left => {
+            // Collapse selected node
+            if let Some(selected) = app.ui_state.tree_state.selected.clone() {
+                if let Some(node) = app.ui_state.tree_state.nodes.get_mut(&selected) {
+                    if node.expanded {
+                        app.ui_state.tree_state.toggle_expand(&selected);
+                        log::info!("Collapsed: {}", selected);
+                    }
+                }
+            }
         }
         KeyCode::Char('c') if key_event.modifiers.contains(KeyModifiers::CONTROL) => {
             log::info!("Ctrl+C pressed - should quit");
