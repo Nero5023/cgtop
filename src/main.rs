@@ -10,7 +10,6 @@ use threads::EventThreads;
 use anyhow::Result;
 use app::App;
 use canvas::Canvas;
-use clap::Parser;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
@@ -19,51 +18,13 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     io,
-    path::PathBuf,
     time::{Duration, Instant},
 };
 
-/// cgroup TUI Monitor - A terminal user interface for monitoring cgroup resource usage
-#[derive(Parser, Debug)]
-#[command(name = "cgtop")]
-#[command(about = "A TUI application to monitor cgroup resource usage", long_about = None)]
-pub struct CliArgs {
-    /// Root cgroup path to monitor
-    #[arg(
-        short = 'p',
-        long = "path",
-        default_value = "/sys/fs/cgroup",
-        help = "Root cgroup filesystem path to monitor"
-    )]
-    pub cgroup_root: PathBuf,
-
-    /// Enable verbose logging
-    #[arg(short = 'v', long = "verbose", help = "Enable verbose logging")]
-    pub verbose: bool,
-}
-
 fn main() -> Result<()> {
-    let args = CliArgs::parse();
-    
-    // Initialize logging with appropriate level based on verbose flag
-    if args.verbose {
-        env_logger::Builder::from_default_env()
-            .filter_level(log::LevelFilter::Debug)
-            .init();
-    } else {
-        env_logger::init();
-    }
+    env_logger::init();
 
     log::info!("cgroup TUI Monitor starting...");
-    log::info!("Using cgroup root path: {}", args.cgroup_root.display());
-
-    // Validate cgroup path exists
-    if !args.cgroup_root.exists() {
-        return Err(anyhow::anyhow!(
-            "cgroup root path does not exist: {}",
-            args.cgroup_root.display()
-        ));
-    }
 
     // Setup terminal
     enable_raw_mode()?;
@@ -72,11 +33,11 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Create app
+    // Create app (no threads for now to fix quit issue)
     let mut app = App::new();
 
-    // Run the application with custom cgroup path
-    let result = run_app(&mut terminal, &mut app, args.cgroup_root);
+    // Run the application
+    let result = run_app(&mut terminal, &mut app);
 
     // Restore terminal
     disable_raw_mode()?;
@@ -94,9 +55,9 @@ fn main() -> Result<()> {
     Ok(())
 }
 
-fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App, cgroup_root: PathBuf) -> Result<()> {
+fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
     let mut event_threads = EventThreads::new();
-    let event_rx = event_threads.start(cgroup_root)?;
+    let event_rx = event_threads.start()?;
 
     loop {
         terminal.draw(|f| Canvas::draw(f, app))?;

@@ -33,7 +33,7 @@ impl EventThreads {
         }
     }
 
-    pub fn start(&mut self, cgroup_root: PathBuf) -> Result<Receiver<CGroupEvent>> {
+    pub fn start(&mut self) -> Result<Receiver<CGroupEvent>> {
         let (event_tx, event_rx) = unbounded::<CGroupEvent>();
 
         let event_tx0 = event_tx.clone();
@@ -45,7 +45,7 @@ impl EventThreads {
         let event_tx1 = event_tx.clone();
 
         self.collection_handle = Some(thread::spawn(move || {
-            collection_thread_worker(event_tx1, cgroup_root);
+            collection_thread_worker(event_tx1);
         }));
 
         Ok(event_rx)
@@ -75,11 +75,12 @@ fn input_thread_worker(sender: Sender<CGroupEvent>) {
     log::info!("Input thread stopped");
 }
 
-fn collection_thread_worker(sender: Sender<CGroupEvent>, cgroup_root: PathBuf) {
-    log::info!("Collection thread started with cgroup root: {}", cgroup_root.display());
+fn collection_thread_worker(sender: Sender<CGroupEvent>) {
+    log::info!("Collection thread started");
 
     loop {
         // sleep for 200ms
+        // TODO: use the proper collection logic
         thread::sleep(Duration::from_millis(200));
 
         // Try to use mock data first for testing in sandbox environments
@@ -88,12 +89,12 @@ fn collection_thread_worker(sender: Sender<CGroupEvent>, cgroup_root: PathBuf) {
 
         if use_mock_data {
             log::info!("Using mock data for testing");
-            let mock_metrics = create_mock_metrics(&cgroup_root);
+            let mock_metrics = create_mock_metrics();
             if let Err(_e) = sender.send(CGroupEvent::Update(Box::new(mock_metrics))) {
                 break;
             }
         } else {
-            let collector = CGroupCollector::new(cgroup_root.clone());
+            let collector = CGroupCollector::new(PathBuf::from("/sys/fs/cgroup"));
 
             if let Ok(metrics) = collector.collect_metrics() {
                 if let Err(_e) = sender.send(CGroupEvent::Update(Box::new(metrics))) {
@@ -101,7 +102,7 @@ fn collection_thread_worker(sender: Sender<CGroupEvent>, cgroup_root: PathBuf) {
                 }
             } else {
                 log::info!("Failed to collect real cgroup data, using mock data");
-                let mock_metrics = create_mock_metrics(&cgroup_root);
+                let mock_metrics = create_mock_metrics();
                 if let Err(_e) = sender.send(CGroupEvent::Update(Box::new(mock_metrics))) {
                     break;
                 }
@@ -125,31 +126,29 @@ fn cleanup_thread_worker(sender: Sender<CGroupEvent>) {
 // --------------------------------------------------------------------
 // Mock data for testing
 // --------------------------------------------------------------------
-fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
+fn create_mock_metrics() -> CGroupMetrics {
     use hashbrown::HashMap;
     use std::time::Instant;
 
     let mut resource_usage = HashMap::new();
     let mut processes = HashMap::new();
 
-    let root_str = cgroup_root.to_string_lossy();
-    
-    // Create mock cgroup hierarchy data based on the provided root
+    // Create mock cgroup hierarchy data
     let mock_paths = vec![
-        root_str.to_string(),
-        format!("{}/system.slice", root_str),
-        format!("{}/system.slice/systemd-logind.service", root_str),
-        format!("{}/system.slice/ssh.service", root_str),
-        format!("{}/system.slice/nginx.service", root_str),
-        format!("{}/user.slice", root_str),
-        format!("{}/user.slice/user-1000.slice", root_str),
-        format!("{}/user.slice/user-1000.slice/session-2.scope", root_str),
-        format!("{}/user.slice/user-1000.slice/user@1000.service", root_str),
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice", root_str),
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service", root_str),
-        format!("{}/init.scope", root_str),
-        format!("{}/machine.slice", root_str),
-        format!("{}/machine.slice/docker-123456.scope", root_str),
+        "/sys/fs/cgroup",
+        "/sys/fs/cgroup/system.slice",
+        "/sys/fs/cgroup/system.slice/systemd-logind.service",
+        "/sys/fs/cgroup/system.slice/ssh.service",
+        "/sys/fs/cgroup/system.slice/nginx.service",
+        "/sys/fs/cgroup/user.slice",
+        "/sys/fs/cgroup/user.slice/user-1000.slice",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/session-2.scope",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service",
+        "/sys/fs/cgroup/init.scope",
+        "/sys/fs/cgroup/machine.slice",
+        "/sys/fs/cgroup/machine.slice/docker-123456.scope",
     ];
 
     for (i, path) in mock_paths.iter().enumerate() {
@@ -180,20 +179,21 @@ fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
         resource_usage.insert(path.to_string(), stats);
     }
 
-    // Add some mock processes using the configured root path
-    processes.insert(1, format!("{}/init.scope", root_str));
+    // Add some mock processes
+    processes.insert(1, "/sys/fs/cgroup/init.scope".to_string());
     processes.insert(
         100,
-        format!("{}/system.slice/systemd-logind.service", root_str),
+        "/sys/fs/cgroup/system.slice/systemd-logind.service".to_string(),
     );
-    processes.insert(200, format!("{}/system.slice/ssh.service", root_str));
+    processes.insert(200, "/sys/fs/cgroup/system.slice/ssh.service".to_string());
     processes.insert(
         1000,
-        format!("{}/user.slice/user-1000.slice/session-2.scope", root_str),
+        "/sys/fs/cgroup/user.slice/user-1000.slice/session-2.scope".to_string(),
     );
     processes.insert(
         2000,
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service", root_str),
+        "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service"
+            .to_string(),
     );
 
     CGroupMetrics {

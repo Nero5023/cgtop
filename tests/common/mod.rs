@@ -30,23 +30,18 @@ pub fn create_mock_resource_stats() -> ResourceStats {
 
 /// Create a set of mock cgroup paths for testing tree operations
 pub fn create_test_cgroup_paths() -> HashMap<String, ResourceStats> {
-    create_test_cgroup_paths_with_root("/sys/fs/cgroup")
-}
-
-/// Create a set of mock cgroup paths for testing tree operations with custom root
-pub fn create_test_cgroup_paths_with_root(root: &str) -> HashMap<String, ResourceStats> {
     let paths = vec![
-        root.to_string(),
-        format!("{}/system.slice", root),
-        format!("{}/system.slice/systemd-logind.service", root),
-        format!("{}/system.slice/ssh.service", root),
-        format!("{}/system.slice/nginx.service", root),
-        format!("{}/user.slice", root),
-        format!("{}/user.slice/user-1000.slice", root),
-        format!("{}/user.slice/user-1000.slice/session-2.scope", root),
-        format!("{}/user.slice/user-1000.slice/user@1000.service", root),
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice", root),
-        format!("{}/init.scope", root),
+        "/sys/fs/cgroup",
+        "/sys/fs/cgroup/system.slice", 
+        "/sys/fs/cgroup/system.slice/systemd-logind.service",
+        "/sys/fs/cgroup/system.slice/ssh.service",
+        "/sys/fs/cgroup/system.slice/nginx.service",
+        "/sys/fs/cgroup/user.slice",
+        "/sys/fs/cgroup/user.slice/user-1000.slice",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/session-2.scope",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service",
+        "/sys/fs/cgroup/user.slice/user-1000.slice/user@1000.service/app.slice",
+        "/sys/fs/cgroup/init.scope",
     ];
 
     paths.into_iter()
@@ -63,17 +58,12 @@ pub fn create_test_cgroup_paths_with_root(root: &str) -> HashMap<String, Resourc
 
 /// Create a simple flat cgroup hierarchy for basic tests
 pub fn create_simple_cgroup_paths() -> HashMap<String, ResourceStats> {
-    create_simple_cgroup_paths_with_root("/sys/fs/cgroup")
-}
-
-/// Create a simple flat cgroup hierarchy for basic tests with custom root
-pub fn create_simple_cgroup_paths_with_root(root: &str) -> HashMap<String, ResourceStats> {
     let paths = vec![
-        root.to_string(),
-        format!("{}/test1", root),
-        format!("{}/test2", root),
-        format!("{}/test1/child1", root),
-        format!("{}/test1/child2", root),
+        "/sys/fs/cgroup",
+        "/sys/fs/cgroup/test1",
+        "/sys/fs/cgroup/test2",
+        "/sys/fs/cgroup/test1/child1",
+        "/sys/fs/cgroup/test1/child2",
     ];
 
     paths.into_iter()

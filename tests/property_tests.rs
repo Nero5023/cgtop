@@ -13,7 +13,7 @@ fn arb_cgroup_path() -> impl Strategy<Value = String> {
 // Generate a set of cgroup paths
 fn arb_cgroup_paths() -> impl Strategy<Value = HashMap<String, cgtop::collection::ResourceStats>> {
     prop::collection::vec(
-        (arb_cgroup_path(), Just(common::create_mock_resource_stats())),
+        (arb_cgroup_path(), prop::just(common::create_mock_resource_stats())),
         1..20
     ).prop_map(|vec| {
         vec.into_iter().collect()
