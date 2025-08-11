@@ -12,7 +12,7 @@ use crate::widgets::{CGroupTreeWidget, ResourceGraphWidget};
 pub struct Canvas;
 
 impl Canvas {
-    pub fn draw(f: &mut Frame, app: &App) {
+    pub fn draw(f: &mut Frame, app: &mut App) {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
@@ -27,7 +27,7 @@ impl Canvas {
         Self::draw_status_bar(f, app, chunks[2]);
     }
 
-    fn draw_title_bar(f: &mut Frame, app: &App, area: Rect) {
+    fn draw_title_bar(f: &mut Frame, app: &mut App, area: Rect) {
         // Truncate long paths to keep title readable
         let root_path = app.config.cgroup_root.display().to_string();
         
@@ -50,20 +50,24 @@ impl Canvas {
         f.render_widget(title, area);
     }
 
-    fn draw_main_content(f: &mut Frame, app: &App, area: Rect) {
+    fn draw_main_content(f: &mut Frame, app: &mut App, area: Rect) {
         let main_chunks = Layout::default()
             .direction(Direction::Horizontal)
             .constraints([Constraint::Percentage(50), Constraint::Percentage(50)])
             .split(area);
 
         // Left side: cgroup tree
-        CGroupTreeWidget::draw(f, app, &app.ui_state.tree_state, main_chunks[0]);
+        {
+            let tree_area = main_chunks[0];
+            app.ui_state.tree_state.adjust_scroll_for_area_height(tree_area.height as usize);
+            CGroupTreeWidget::draw(f, app, &app.ui_state.tree_state, tree_area);
+        }
 
         // Right side: resource usage
         ResourceGraphWidget::draw(f, app, main_chunks[1]);
     }
 
-    fn draw_status_bar(f: &mut Frame, app: &App, area: Rect) {
+    fn draw_status_bar(f: &mut Frame, app: &mut App, area: Rect) {
         let status_text = if let Some(ref data) = app.cgroup_data.metrics {
             format!(
                 "Last update: {:?} ago | cgroups: {} | Press 'q' to quit",

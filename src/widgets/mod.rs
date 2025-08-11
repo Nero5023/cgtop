@@ -25,6 +25,7 @@ pub struct CGroupTreeState {
     pub selected: Option<String>,
     pub expanded_nodes: std::collections::HashSet<String>,
     pub visible_nodes: Vec<String>,
+    pub scroll_offset: usize,
     root_path: PathBuf,
 }
 
@@ -35,6 +36,7 @@ impl Default for CGroupTreeState {
             selected: None,
             expanded_nodes: std::collections::HashSet::new(),
             visible_nodes: Vec::new(),
+            scroll_offset: 0,
             root_path: PathBuf::from("/sys/fs/cgroup"),
         }
     }
@@ -220,6 +222,7 @@ impl CGroupTreeState {
         };
 
         self.selected = self.visible_nodes.get(next_idx).cloned();
+        self.adjust_scroll_for_selection(next_idx);
     }
 
     pub fn select_previous(&mut self) {
@@ -240,6 +243,42 @@ impl CGroupTreeState {
         };
 
         self.selected = self.visible_nodes.get(prev_idx).cloned();
+        self.adjust_scroll_for_selection(prev_idx);
+    }
+
+    fn adjust_scroll_for_selection(&mut self, selected_idx: usize) {
+        // This will be set based on the visible area height in the widget
+        // For now, we'll assume a reasonable default and it can be adjusted by the widget
+        let visible_height = 20; // Default assumption, will be overridden by widget
+        
+        // Ensure the selected item is visible
+        if selected_idx < self.scroll_offset {
+            // Selected item is above visible area, scroll up
+            self.scroll_offset = selected_idx;
+        } else if selected_idx >= self.scroll_offset + visible_height {
+            // Selected item is below visible area, scroll down
+            self.scroll_offset = selected_idx.saturating_sub(visible_height - 1);
+        }
+    }
+    
+    pub fn adjust_scroll_for_area_height(&mut self, area_height: usize) {
+        if let Some(selected) = &self.selected {
+            if let Some(selected_idx) = self.visible_nodes.iter().position(|n| n == selected) {
+                let visible_height = area_height.saturating_sub(2); // Account for borders
+                
+                // Ensure scroll offset keeps selected item visible
+                if selected_idx < self.scroll_offset {
+                    self.scroll_offset = selected_idx;
+                } else if selected_idx >= self.scroll_offset + visible_height {
+                    self.scroll_offset = selected_idx.saturating_sub(visible_height - 1);
+                }
+                
+                // Ensure scroll offset doesn't go beyond the list
+                if self.scroll_offset + visible_height > self.visible_nodes.len() {
+                    self.scroll_offset = self.visible_nodes.len().saturating_sub(visible_height);
+                }
+            }
+        }
     }
 
     pub fn root_path_string(&self) -> String {
@@ -251,15 +290,17 @@ pub struct CGroupTreeWidget;
 
 impl CGroupTreeWidget {
     pub fn draw(f: &mut Frame, app: &App, tree_state: &CGroupTreeState, area: Rect) {
-        // log::info!(
-        //     "CGroupTreeWidget::draw called with tree_state.visible_nodes: {} nodes",
-        //     tree_state.visible_nodes.len()
-        // );
+        // Calculate the visible range based on scroll offset
+        let visible_height = area.height.saturating_sub(2) as usize; // Account for borders
+        let start_idx = tree_state.scroll_offset;
+        let end_idx = (start_idx + visible_height).min(tree_state.visible_nodes.len());
 
         let items: Vec<ListItem> = if let Some(ref metrics) = app.cgroup_data.metrics {
             tree_state
                 .visible_nodes
                 .iter()
+                .skip(start_idx)
+                .take(end_idx - start_idx)
                 .filter_map(|node_path| {
                     let node = tree_state.nodes.get(node_path)?;
                     let stats = metrics.resource_usage.get(&node.path)?;
