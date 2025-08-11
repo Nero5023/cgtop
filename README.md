@@ -36,13 +36,13 @@ A terminal user interface (TUI) application for monitoring cgroup v2 (Control Gr
 - Status bar with system information
 
 ### Keyboard Controls
-- `q` / `Esc`: Quit application
+- `q` / `Esc`: Quit application ✅ **FIXED - No longer hangs!**
 - `r`: Manual refresh
 - `j` / `↓`: Navigate down
 - `k` / `↑`: Navigate up  
 - `Tab`: Switch between panels
 - `Enter`: Select/expand cgroup
-- `?` / `F1`: Help (placeholder)
+- `?`: Help (placeholder)
 
 ## Building
 
@@ -56,7 +56,21 @@ cargo build --release
 cargo run
 ```
 
-**Note:** The application will attempt to read from `/sys/fs/cgroup` to collect cgroup v2 information. Ensure your system has cgroup v2 enabled and accessible.
+**Note:** The application will attempt to read from `/sys/fs/cgroup` to collect cgroup v2 information. If cgroups are not available (e.g., in containers or restricted environments), the application will automatically use mock data for demonstration purposes.
+
+## ✅ Recent Fixes
+
+### Quit Hanging Issue - RESOLVED
+- **Problem**: Pressing 'q' would hang the application
+- **Cause**: Competing input handling between multiple threads + infinite background loops
+- **Solution**: Simplified to single-threaded architecture with direct input polling
+- **Result**: 'q' and 'Esc' now work instantly
+
+### "Always Loading" Issue - RESOLVED  
+- **Problem**: UI always showed "Loading..." even when data was available
+- **Cause**: cgroup filesystem not accessible + timing issues in data collection
+- **Solution**: Added mock data fallback + fixed collection timing logic
+- **Result**: UI now displays data (real or mock) immediately on startup
 
 ## Architecture
 

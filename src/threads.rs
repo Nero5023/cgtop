@@ -1,6 +1,5 @@
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender, unbounded};
-use crossterm::event::{self, Event, KeyCode};
 use std::{
     path::PathBuf,
     thread,
@@ -74,34 +73,13 @@ pub enum CleanupMessage {
     Shutdown,
 }
 
-fn input_thread_worker(sender: Sender<InputEvent>) {
-    log::info!("Input thread started");
+fn input_thread_worker(_sender: Sender<InputEvent>) {
+    log::info!("Input thread started (disabled - input handled in main thread)");
     
-    loop {
-        match event::poll(Duration::from_millis(100)) {
-            Ok(true) => {
-                if let Ok(Event::Key(key_event)) = event::read() {
-                    match key_event.code {
-                        KeyCode::Char('q') | KeyCode::Esc => {
-                            let _ = sender.send(InputEvent::Quit);
-                            break;
-                        }
-                        _ => {
-                            let _ = sender.send(InputEvent::Key(key_event));
-                        }
-                    }
-                }
-            }
-            Ok(false) => {
-                // No events, continue polling
-                continue;
-            }
-            Err(e) => {
-                log::error!("Input polling error: {}", e);
-                break;
-            }
-        }
-    }
+    // Input thread is now disabled since we handle input directly in main thread
+    // This avoids the conflict between crossterm event polling in different threads
+    // Just wait for a reasonable time and exit
+    std::thread::sleep(Duration::from_millis(100));
     
     log::info!("Input thread stopped");
 }
