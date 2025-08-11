@@ -288,10 +288,10 @@ impl CGroupCollector {
                 cgroups
                     .into_iter()
                     .find(|cgroup| cgroup.hierarchy == 0) // cgroup v2 has hierarchy 0
-                    .map(|cgroup| format!("/sys/fs/cgroup{}", cgroup.pathname))
-                    .unwrap_or_else(|| "/sys/fs/cgroup".to_string())
+                    .map(|cgroup| format!("{}{}", self.cgroup_root.to_string_lossy(), cgroup.pathname))
+                    .unwrap_or_else(|| self.cgroup_root.to_string_lossy().to_string())
             }
-            Err(_) => "/sys/fs/cgroup".to_string(), // Fallback to root
+            Err(_) => self.cgroup_root.to_string_lossy().to_string(), // Fallback to root
         };
 
         Ok(ProcessInfo {

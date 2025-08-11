@@ -10,6 +10,7 @@ use threads::EventThreads;
 use anyhow::Result;
 use app::App;
 use canvas::Canvas;
+use clap::Parser;
 use crossterm::{
     event::{DisableMouseCapture, EnableMouseCapture},
     execute,
@@ -18,13 +19,37 @@ use crossterm::{
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
     io,
+    path::PathBuf,
     time::{Duration, Instant},
 };
 
+fn normalize_path(s: &str) -> Result<PathBuf, String> {
+    Ok(PathBuf::from(s.trim_end_matches('/')))
+}
+
+#[derive(Parser)]
+#[command(name = "cgtop")]
+#[command(about = "A top-like utility for cgroup v2 hierarchies")]
+#[command(version = "0.1.0")]
+struct Cli {
+    /// Path to the cgroup filesystem root
+    #[arg(long, short, default_value = "/sys/fs/cgroup", value_parser = normalize_path)]
+    path: PathBuf,
+
+    /// Enable verbose logging
+    #[arg(long, short)]
+    verbose: bool,
+}
+
 fn main() -> Result<()> {
+    let cli = Cli::parse();
+
     env_logger::init();
 
-    log::info!("cgroup TUI Monitor starting...");
+    log::info!(
+        "cgroup TUI Monitor starting with root path: {}",
+        cli.path.display()
+    );
 
     // Setup terminal
     enable_raw_mode()?;
@@ -33,8 +58,8 @@ fn main() -> Result<()> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    // Create app (no threads for now to fix quit issue)
-    let mut app = App::new();
+    // Create app with custom cgroup path
+    let mut app = App::new_with_path(cli.path);
 
     // Run the application
     let result = run_app(&mut terminal, &mut app);
@@ -57,7 +82,7 @@ fn main() -> Result<()> {
 
 fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App) -> Result<()> {
     let mut event_threads = EventThreads::new();
-    let event_rx = event_threads.start()?;
+    let event_rx = event_threads.start(app.config.cgroup_root.clone())?;
 
     loop {
         terminal.draw(|f| Canvas::draw(f, app))?;

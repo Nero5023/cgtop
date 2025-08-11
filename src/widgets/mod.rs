@@ -5,7 +5,7 @@ use ratatui::{
     text::{Line, Span},
     widgets::{Block, Borders, List, ListItem, Paragraph, Row, StatefulWidget, Table},
 };
-use std::collections::BTreeMap;
+use std::{collections::BTreeMap, path::PathBuf};
 
 use crate::app::App;
 use crate::canvas::{format_bytes, format_duration_usec};
@@ -25,6 +25,7 @@ pub struct CGroupTreeState {
     pub selected: Option<String>,
     pub expanded_nodes: std::collections::HashSet<String>,
     pub visible_nodes: Vec<String>,
+    root_path: PathBuf,
 }
 
 impl Default for CGroupTreeState {
@@ -34,7 +35,16 @@ impl Default for CGroupTreeState {
             selected: None,
             expanded_nodes: std::collections::HashSet::new(),
             visible_nodes: Vec::new(),
+            root_path: PathBuf::from("/sys/fs/cgroup"),
         }
+    }
+}
+
+impl CGroupTreeState {
+    pub fn new(root_path: PathBuf) -> Self {
+        let mut state = Self::default();
+        state.root_path = root_path;
+        state
     }
 }
 
@@ -97,7 +107,7 @@ impl CGroupTreeState {
     }
 
     fn insert_path(&mut self, path: &str) {
-        let normalized_path = path.strip_prefix("/sys/fs/cgroup").unwrap_or(path);
+        let normalized_path = path.strip_prefix(&self.root_path_string()).unwrap_or(path);
         let parts: Vec<&str> = normalized_path
             .split('/')
             .filter(|p| !p.is_empty())
@@ -108,7 +118,7 @@ impl CGroupTreeState {
             self.nodes.insert(
                 "".to_string(),
                 CGroupTreeNode {
-                    path: "/sys/fs/cgroup".to_string(),
+                    path: self.root_path.to_string_lossy().to_string(),
                     name: "root".to_string(),
                     children: Vec::new(),
                     expanded: true, // Root is always expanded
@@ -130,9 +140,9 @@ impl CGroupTreeState {
 
             if !self.nodes.contains_key(&current_path) {
                 let full_path = if current_path.is_empty() {
-                    "/sys/fs/cgroup".to_string()
+                    self.root_path.to_string_lossy().to_string()
                 } else {
-                    format!("/sys/fs/cgroup/{}", current_path)
+                    format!("{}/{}", self.root_path.to_string_lossy(), current_path)
                 };
 
                 self.nodes.insert(
@@ -231,6 +241,10 @@ impl CGroupTreeState {
 
         self.selected = self.visible_nodes.get(prev_idx).cloned();
     }
+
+    pub fn root_path_string(&self) -> String {
+        self.root_path.to_string_lossy().to_string()
+    }
 }
 
 pub struct CGroupTreeWidget;
@@ -311,11 +325,11 @@ impl CGroupTreeWidget {
         }
 
         let mut prefix = String::new();
-        let node_path_parts: Vec<&str> = if node.path == "/sys/fs/cgroup" {
+        let node_path_parts: Vec<&str> = if node.path == tree_state.root_path.to_string_lossy() {
             vec![]
         } else {
             node.path
-                .strip_prefix("/sys/fs/cgroup/")
+                .strip_prefix(&tree_state.root_path_string())
                 .unwrap_or(&node.path)
                 .split('/')
                 .collect()
@@ -360,7 +374,7 @@ impl CGroupTreeWidget {
         // Find parent and check if this is the last child
         let node_path = node
             .path
-            .strip_prefix("/sys/fs/cgroup")
+            .strip_prefix(&tree_state.root_path_string())
             .unwrap_or(&node.path);
         if let Some(parent_path_end) = node_path.rfind('/') {
             let parent_path = if parent_path_end == 0 {
@@ -394,7 +408,7 @@ impl ProcessListWidget {
                     Row::new(vec![
                         pid.to_string(),
                         format!("pid-{}", pid), // Simple process identifier
-                        Self::format_cgroup_display(cgroup_path),
+                        Self::format_cgroup_display(cgroup_path, &app.config.cgroup_root),
                     ])
                 })
                 .collect()
@@ -424,8 +438,8 @@ impl ProcessListWidget {
         f.render_widget(table, area);
     }
 
-    fn format_cgroup_display(path: &str) -> String {
-        path.strip_prefix("/sys/fs/cgroup")
+    fn format_cgroup_display(path: &str, root_path: &PathBuf) -> String {
+        path.strip_prefix(root_path.to_string_lossy().as_ref())
             .unwrap_or(path)
             .to_string()
     }

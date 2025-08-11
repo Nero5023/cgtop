@@ -1,6 +1,7 @@
 use crate::collection::CGroupMetrics;
 use crate::widgets::CGroupTreeState;
 use crossbeam::channel::Receiver;
+use std::path::PathBuf;
 use std::time::Instant;
 
 pub struct App {
@@ -26,10 +27,28 @@ pub struct UiState {
     pub scroll_offset: usize,
 }
 
-#[derive(Default)]
+impl UiState {
+    pub fn new(cgroup_root: PathBuf) -> Self {
+        let mut ui_state = Self::default();
+        ui_state.tree_state = CGroupTreeState::new(cgroup_root);
+        ui_state
+    }
+}
+
 pub struct Config {
     pub update_interval_ms: u64,
     pub data_retention_seconds: u64,
+    pub cgroup_root: PathBuf,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            update_interval_ms: 0,
+            data_retention_seconds: 0,
+            cgroup_root: PathBuf::from("/sys/fs/cgroup"),
+        }
+    }
 }
 
 #[derive(Default)]
@@ -50,6 +69,20 @@ impl App {
             cgroup_data: CGroupData::default(),
             ui_state: UiState::default(),
             config: Config::default(),
+            filters: FilterState::default(),
+            input_receiver: None,
+            data_receiver: None,
+        }
+    }
+
+    pub fn new_with_path(cgroup_root: PathBuf) -> Self {
+        let mut config = Config::default();
+        config.cgroup_root = cgroup_root;
+
+        Self {
+            cgroup_data: CGroupData::default(),
+            ui_state: UiState::new(config.cgroup_root.clone()),
+            config,
             filters: FilterState::default(),
             input_receiver: None,
             data_receiver: None,
