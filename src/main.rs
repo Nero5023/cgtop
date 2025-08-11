@@ -23,6 +23,8 @@ use std::{
     time::{Duration, Instant},
 };
 
+// we need to normalize the path to remove the trailing slash
+// because the path is used as a prefix for other paths
 fn normalize_path(s: &str) -> Result<PathBuf, String> {
     Ok(PathBuf::from(s.trim_end_matches('/')))
 }
