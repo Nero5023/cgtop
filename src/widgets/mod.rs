@@ -264,7 +264,7 @@ impl CGroupTreeWidget {
                     let node = tree_state.nodes.get(node_path)?;
                     let stats = metrics.resource_usage.get(&node.path)?;
 
-                    let memory_info = format_bytes(stats.memory.current);
+                    let memory_current_info = format_bytes(stats.memory.current);
                     let memory_peak_info = format_bytes(stats.memory.peak);
                     let cpu_info = format_duration_usec(stats.cpu.usage_usec);
 
@@ -292,8 +292,12 @@ impl CGroupTreeWidget {
                         Span::styled(&node.name, name_style),
                         Span::raw(" - "),
                         Span::styled(
-                            format!("Mem: {}/peak:{}", memory_info, memory_peak_info),
+                            format!("Mem: {}", memory_current_info),
                             Style::default().fg(Color::Yellow),
+                        ),
+                        Span::styled(
+                            format!("/{}", memory_peak_info),
+                            Style::default().fg(Color::DarkGray),
                         ),
                         Span::raw(" | "),
                         Span::styled(
