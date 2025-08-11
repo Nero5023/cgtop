@@ -43,45 +43,57 @@ impl CGroupTreeState {
         &mut self,
         paths: &hashbrown::HashMap<String, crate::collection::ResourceStats>,
     ) {
-        log::info!("build_from_paths called with {} paths", paths.len());
+        // Save current expansion state and selection before rebuilding
+        let saved_expanded_nodes = self.expanded_nodes.clone();
+        let saved_selection = self.selected.clone();
+        let is_first_build = self.nodes.is_empty();
 
         self.nodes.clear();
         self.visible_nodes.clear();
 
         // Build tree structure from flat paths
         for path in paths.keys() {
-            log::info!("Processing path: {}", path);
+            // log::info!("Processing path: {}", path);
             self.insert_path(path);
         }
 
-        log::info!("After building tree: {} nodes", self.nodes.len());
+        // log::info!("After building tree: {} nodes", self.nodes.len());
 
-        // Expand root level nodes by default for better visibility
-        for node in self.nodes.values_mut() {
-            if node.depth == 1 {
+        // Restore expansion state from saved state, or set defaults for first build
+        for (node_key, node) in self.nodes.iter_mut() {
+            // For first build, expand root level nodes by default
+            if is_first_build && node.depth == 1 {
                 node.expanded = true;
-                self.expanded_nodes.insert(
-                    node.path
-                        .strip_prefix("/sys/fs/cgroup/")
-                        .unwrap_or(&node.path)
-                        .to_string(),
-                );
+                self.expanded_nodes.insert(node_key.clone());
+            }
+            // For subsequent builds, restore previous expansion state
+            else if saved_expanded_nodes.contains(node_key) {
+                node.expanded = true;
+                self.expanded_nodes.insert(node_key.clone());
+            }
+            // Root is always expanded
+            else if node_key.is_empty() {
+                node.expanded = true;
+                self.expanded_nodes.insert(node_key.clone());
             }
         }
 
         // Build visible nodes list
         self.rebuild_visible_nodes();
 
-        // Select first visible node by default
-        if self.selected.is_none() && !self.visible_nodes.is_empty() {
+        // Restore selection, or select first visible node by default
+        if let Some(saved_sel) = saved_selection {
+            // Check if previously selected node still exists
+            if self.nodes.contains_key(&saved_sel) && self.visible_nodes.contains(&saved_sel) {
+                self.selected = Some(saved_sel);
+            } else if !self.visible_nodes.is_empty() {
+                // Fallback to first visible node if previous selection is no longer visible
+                self.selected = Some(self.visible_nodes[0].clone());
+            }
+        } else if self.selected.is_none() && !self.visible_nodes.is_empty() {
+            // First time: select first visible node
             self.selected = Some(self.visible_nodes[0].clone());
         }
-
-        log::info!(
-            "Visible nodes: {} ({:?})",
-            self.visible_nodes.len(),
-            self.visible_nodes
-        );
     }
 
     fn insert_path(&mut self, path: &str) {
@@ -225,10 +237,10 @@ pub struct CGroupTreeWidget;
 
 impl CGroupTreeWidget {
     pub fn draw(f: &mut Frame, app: &App, tree_state: &CGroupTreeState, area: Rect) {
-        log::info!(
-            "CGroupTreeWidget::draw called with tree_state.visible_nodes: {} nodes",
-            tree_state.visible_nodes.len()
-        );
+        // log::info!(
+        //     "CGroupTreeWidget::draw called with tree_state.visible_nodes: {} nodes",
+        //     tree_state.visible_nodes.len()
+        // );
 
         let items: Vec<ListItem> = if let Some(ref metrics) = app.cgroup_data.metrics {
             tree_state
