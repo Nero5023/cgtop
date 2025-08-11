@@ -158,6 +158,7 @@ fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
             memory: MemoryStats {
                 current: 1024 * 1024 * (10 + i as u64 * 5), // 10MB + 5MB per level
                 max: Some(1024 * 1024 * 100),               // 100MB limit
+                peak: 1024 * 1024 * (15 + i as u64 * 8),    // 15MB + 8MB per level (peak > current)
                 ..Default::default()
             },
             cpu: CpuStats {

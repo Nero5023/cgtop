@@ -265,6 +265,7 @@ impl CGroupTreeWidget {
                     let stats = metrics.resource_usage.get(&node.path)?;
 
                     let memory_info = format_bytes(stats.memory.current);
+                    let memory_peak_info = format_bytes(stats.memory.peak);
                     let cpu_info = format_duration_usec(stats.cpu.usage_usec);
 
                     // Create tree visualization with proper indentation and tree chars
@@ -291,7 +292,7 @@ impl CGroupTreeWidget {
                         Span::styled(&node.name, name_style),
                         Span::raw(" - "),
                         Span::styled(
-                            format!("Mem: {}", memory_info),
+                            format!("Mem: {}/peak:{}", memory_info, memory_peak_info),
                             Style::default().fg(Color::Yellow),
                         ),
                         Span::raw(" | "),
@@ -453,9 +454,10 @@ impl ResourceGraphWidget {
             if let Some(selected_path) = &app.ui_state.selected_cgroup {
                 if let Some(stats) = metrics.resource_usage.get(selected_path) {
                     format!(
-                        "Selected cgroup: {}\n\nMemory: {}\nCPU Time: {}\nIO Read: {} | Write: {}\nPIDs: {}",
+                        "Selected cgroup: {}\n\nMemory Current: {}\nMemory Peak: {}\nCPU Time: {}\nIO Read: {} | Write: {}\nPIDs: {}",
                         selected_path,
                         format_bytes(stats.memory.current),
+                        format_bytes(stats.memory.peak),
                         format_duration_usec(stats.cpu.usage_usec),
                         format_bytes(stats.io.rbytes),
                         format_bytes(stats.io.wbytes),
