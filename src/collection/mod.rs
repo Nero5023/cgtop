@@ -1,15 +1,13 @@
 use anyhow::Result;
 use crossbeam::channel::Sender;
 use hashbrown::HashMap;
-use procfs::process::{all_processes, Process};
+use procfs::process::{Process, all_processes};
+use std::fs;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
-use std::fs;
 
 pub struct CGroupCollector {
     pub cgroup_root: PathBuf,
-    pub collection_interval: Duration,
-    pub metrics_sender: Sender<CGroupMetrics>,
 }
 
 #[derive(Debug, Clone)]
@@ -91,12 +89,8 @@ pub struct ProcessInfo {
 }
 
 impl CGroupCollector {
-    pub fn new(cgroup_root: PathBuf, interval: Duration, sender: Sender<CGroupMetrics>) -> Self {
-        Self {
-            cgroup_root,
-            collection_interval: interval,
-            metrics_sender: sender,
-        }
+    pub fn new(cgroup_root: PathBuf) -> Self {
+        Self { cgroup_root }
     }
 
     pub fn collect_metrics(&self) -> Result<CGroupMetrics> {
@@ -109,22 +103,25 @@ impl CGroupCollector {
 
         // Collect cgroup tree and resource stats
         self.collect_cgroup_tree(&self.cgroup_root, &mut metrics)?;
-        
+
         // Map processes to cgroups
         self.collect_process_mappings(&mut metrics)?;
-        
+
         Ok(metrics)
     }
 
     fn collect_cgroup_tree(&self, path: &Path, metrics: &mut CGroupMetrics) -> Result<()> {
         if !path.exists() {
-            return Err(anyhow::anyhow!("cgroup path does not exist: {}", path.display()));
+            return Err(anyhow::anyhow!(
+                "cgroup path does not exist: {}",
+                path.display()
+            ));
         }
 
         // Read basic cgroup information
         let path_str = path.to_string_lossy().to_string();
         let stats = self.read_cgroup_stats(path)?;
-        
+
         metrics.resource_usage.insert(path_str.clone(), stats);
 
         // Recursively collect from subdirectories
@@ -144,13 +141,13 @@ impl CGroupCollector {
 
         // Read memory stats
         stats.memory = self.read_memory_stats(cgroup_path)?;
-        
+
         // Read CPU stats
         stats.cpu = self.read_cpu_stats(cgroup_path)?;
-        
+
         // Read IO stats
         stats.io = self.read_io_stats(cgroup_path)?;
-        
+
         // Read PID stats
         stats.pids = self.read_pid_stats(cgroup_path)?;
 
@@ -188,7 +185,9 @@ impl CGroupCollector {
                         "system_usec" => cpu_stats.system_usec = parts[1].parse().unwrap_or(0),
                         "nr_periods" => cpu_stats.nr_periods = parts[1].parse().unwrap_or(0),
                         "nr_throttled" => cpu_stats.nr_throttled = parts[1].parse().unwrap_or(0),
-                        "throttled_usec" => cpu_stats.throttled_usec = parts[1].parse().unwrap_or(0),
+                        "throttled_usec" => {
+                            cpu_stats.throttled_usec = parts[1].parse().unwrap_or(0)
+                        }
                         _ => {}
                     }
                 }
@@ -246,10 +245,14 @@ impl CGroupCollector {
             Ok(processes) => {
                 for process in processes.filter_map(|p| p.ok()) {
                     if let Ok(process_info) = self.get_process_cgroup_info(process) {
-                        metrics.processes.insert(process_info.pid, process_info.cgroup_path.clone());
-                        
+                        metrics
+                            .processes
+                            .insert(process_info.pid, process_info.cgroup_path.clone());
+
                         // Add process to the corresponding cgroup's process list
-                        if let Some(_resource_stats) = metrics.resource_usage.get_mut(&process_info.cgroup_path) {
+                        if let Some(_resource_stats) =
+                            metrics.resource_usage.get_mut(&process_info.cgroup_path)
+                        {
                             // This would be where we'd add the process to the cgroup's process list
                             // For now, we'll just track the mapping in the main processes HashMap
                         }
@@ -260,19 +263,20 @@ impl CGroupCollector {
                 log::warn!("Failed to read processes: {}", e);
             }
         }
-        
+
         Ok(())
     }
 
     fn get_process_cgroup_info(&self, process: Process) -> Result<ProcessInfo> {
         let pid = process.pid() as u32;
-        
+
         // Read process command
         let command = process
             .cmdline()
             .map(|cmd| cmd.join(" "))
             .unwrap_or_else(|_| {
-                process.stat()
+                process
+                    .stat()
                     .map(|s| s.comm)
                     .unwrap_or_else(|_| format!("[{}]", pid))
             });
@@ -297,7 +301,11 @@ impl CGroupCollector {
         })
     }
 
-    pub fn get_process_count_for_cgroup(&self, cgroup_path: &str, metrics: &CGroupMetrics) -> usize {
+    pub fn get_process_count_for_cgroup(
+        &self,
+        cgroup_path: &str,
+        metrics: &CGroupMetrics,
+    ) -> usize {
         metrics
             .processes
             .values()

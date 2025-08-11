@@ -46,9 +46,17 @@ impl EventThreads {
             loop {
                 // sleep for 100ms
                 // TODO: use the proper collection logic
-                thread::sleep(Duration::from_millis(100));
-                if let Err(e) = event_tx1.send(CGroupEvent::UpdateDummy) {
-                    break;
+                thread::sleep(Duration::from_millis(200));
+
+                let collector = CGroupCollector::new(PathBuf::from("/sys/fs/cgroup"));
+
+                if let Ok(metrics) = collector.collect_metrics() {
+                    // TODO: handle metrics
+                    if let Err(e) = event_tx1.send(CGroupEvent::Update(Box::new(metrics))) {
+                        break;
+                    }
+                } else {
+                    // TODO: handle error
                 }
             }
         }));
@@ -147,8 +155,7 @@ fn collection_thread_worker(
     log::info!("Collection thread started");
 
     let cgroup_root = PathBuf::from("/sys/fs/cgroup");
-    let collection_interval = Duration::from_secs(1);
-    let collector = CGroupCollector::new(cgroup_root, collection_interval, data_sender.clone());
+    let collector = CGroupCollector::new(cgroup_root);
 
     let mut last_collection = Instant::now();
     let mut last_cleanup_signal = Instant::now();
@@ -157,7 +164,7 @@ fn collection_thread_worker(
         let now = Instant::now();
 
         // Collect data at regular intervals
-        if now.duration_since(last_collection) >= collection_interval {
+        if now.duration_since(last_collection) >= Duration::from_secs(1) {
             match collector.collect_metrics() {
                 Ok(metrics) => {
                     if let Err(e) = data_sender.send(metrics) {
