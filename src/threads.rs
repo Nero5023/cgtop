@@ -3,11 +3,10 @@ use crossbeam::channel::{Receiver, Sender, unbounded};
 use std::{
     path::PathBuf,
     thread,
-    time::{Duration, Instant},
+    time::Duration,
 };
 
 use crate::{
-    app::InputEvent,
     collection::{
         CGroupCollector, CGroupMetrics, CpuStats, IoStats, MemoryStats, PidStats, ResourceStats,
     },
@@ -113,14 +112,12 @@ fn collection_thread_worker(sender: Sender<CGroupEvent>, cgroup_root: PathBuf) {
     log::info!("Collection thread stopped");
 }
 
-fn cleanup_thread_worker(sender: Sender<CGroupEvent>) {
+fn cleanup_thread_worker(_sender: Sender<CGroupEvent>) {
     log::info!("Cleanup thread started");
 
     loop {
         // TODO, every x times, send cleanup message to only keep the limited amount of data
     }
-
-    log::info!("Cleanup thread stopped");
 }
 
 // --------------------------------------------------------------------
@@ -161,6 +158,7 @@ fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
                 peak: 1024 * 1024 * (15 + i as u64 * 8),    // 15MB + 8MB per level (peak > current)
                 ..Default::default()
             },
+            cgroup_procs: vec![1000 + i as u32, 2000 + i as u32], // Mock PIDs
             cpu: CpuStats {
                 usage_usec: 1000000 * (i as u64 + 1), // 1 second + i seconds
                 user_usec: 500000 * (i as u64 + 1),

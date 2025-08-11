@@ -1,10 +1,9 @@
 use anyhow::Result;
-use crossbeam::channel::Sender;
 use hashbrown::HashMap;
 use procfs::process::{Process, all_processes};
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 pub struct CGroupCollector {
     pub cgroup_root: PathBuf,
@@ -39,6 +38,7 @@ pub struct ResourceStats {
     pub cpu: CpuStats,
     pub io: IoStats,
     pub pids: PidStats,
+    pub cgroup_procs: Vec<u32>, // PIDs in this cgroup from cgroup.procs
 }
 
 #[derive(Debug, Clone, Default)]
@@ -179,6 +179,9 @@ impl CGroupCollector {
 
         // Read PID stats
         stats.pids = self.read_pid_stats(cgroup_path)?;
+
+        // Read cgroup.procs
+        stats.cgroup_procs = self.read_cgroup_procs(cgroup_path)?;
 
         Ok(stats)
     }
@@ -346,6 +349,20 @@ impl CGroupCollector {
         }
 
         Ok(pid_stats)
+    }
+
+    pub fn read_cgroup_procs(&self, cgroup_path: &Path) -> Result<Vec<u32>> {
+        let mut pids = Vec::new();
+
+        if let Ok(content) = fs::read_to_string(cgroup_path.join("cgroup.procs")) {
+            for line in content.lines() {
+                if let Ok(pid) = line.trim().parse::<u32>() {
+                    pids.push(pid);
+                }
+            }
+        }
+
+        Ok(pids)
     }
 
     fn collect_process_mappings(&self, metrics: &mut CGroupMetrics) -> Result<()> {

@@ -3,7 +3,7 @@ use ratatui::{
     layout::{Constraint, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
-    widgets::{Block, Borders, List, ListItem, Paragraph, Row, StatefulWidget, Table},
+    widgets::{Block, Borders, List, ListItem, Paragraph, Row, Table},
 };
 use std::{collections::BTreeMap, path::PathBuf};
 
@@ -369,7 +369,7 @@ impl CGroupTreeWidget {
         prefix
     }
 
-    fn has_more_siblings(path: &str, depth: usize, tree_state: &CGroupTreeState) -> bool {
+    fn has_more_siblings(_path: &str, depth: usize, _tree_state: &CGroupTreeState) -> bool {
         // This is a simplified check - in a full implementation, you'd track sibling relationships
         // For now, we'll assume most intermediate nodes have siblings
         depth > 1
@@ -523,6 +523,34 @@ impl ResourceGraphWidget {
                         "MEMORY PRESSURE (PSI):\n• Not available (memory.pressure file not found)".to_string()
                     };
                     
+                    let cgroup_processes = if stats.cgroup_procs.is_empty() {
+                        "CGROUP PROCESSES:\n• No processes in this cgroup".to_string()
+                    } else {
+                        let process_list = if stats.cgroup_procs.len() <= 10 {
+                            // Show all PIDs if 10 or fewer
+                            stats.cgroup_procs.iter()
+                                .map(|pid| pid.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ")
+                        } else {
+                            // Show first 10 PIDs and count
+                            let first_ten = stats.cgroup_procs.iter()
+                                .take(10)
+                                .map(|pid| pid.to_string())
+                                .collect::<Vec<_>>()
+                                .join(", ");
+                            format!("{} ... (+{} more)", first_ten, stats.cgroup_procs.len() - 10)
+                        };
+                        
+                        format!(
+                            "CGROUP PROCESSES:\n\
+                            • Count: {count}\n\
+                            • PIDs: {pids}",
+                            count = stats.cgroup_procs.len(),
+                            pids = process_list
+                        )
+                    };
+
                     let other_resources = format!(
                         "OTHER RESOURCES:\n\
                         • CPU Time: {cpu_time}\n\
@@ -535,13 +563,14 @@ impl ResourceGraphWidget {
                     );
                     
                     format!(
-                        "{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",
+                        "{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}\n\n{}",
                         header,
                         memory_overview,
                         memory_breakdown,
                         memory_activity,
                         page_faults,
                         memory_pressure,
+                        cgroup_processes,
                         other_resources
                     )
                 } else {

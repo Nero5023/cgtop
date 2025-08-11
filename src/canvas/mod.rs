@@ -7,7 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
-use crate::widgets::{CGroupTreeWidget, ProcessListWidget, ResourceGraphWidget};
+use crate::widgets::{CGroupTreeWidget, ResourceGraphWidget};
 
 pub struct Canvas;
 
