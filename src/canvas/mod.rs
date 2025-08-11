@@ -1,6 +1,7 @@
 use ratatui::{
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
+    text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
     Frame,
 };
@@ -21,14 +22,26 @@ impl Canvas {
             ])
             .split(f.area());
 
-        Self::draw_title_bar(f, chunks[0]);
+        Self::draw_title_bar(f, app, chunks[0]);
         Self::draw_main_content(f, app, chunks[1]);
         Self::draw_status_bar(f, app, chunks[2]);
     }
 
-    fn draw_title_bar(f: &mut Frame, area: Rect) {
-        let title = Paragraph::new("cgroup Monitor v0.1.0")
-            .style(Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+    fn draw_title_bar(f: &mut Frame, app: &App, area: Rect) {
+        // Truncate long paths to keep title readable
+        let root_path = app.config.cgroup_root.display().to_string();
+        
+        let title_line = Line::from(vec![
+            Span::styled(
+                "cgroup Monitor v0.1.0 - ",
+                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(
+                root_path,
+                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+            ),
+        ]);
+        let title = Paragraph::new(title_line)
             .block(
                 Block::default()
                     .borders(Borders::ALL)
