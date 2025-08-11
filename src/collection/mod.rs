@@ -154,7 +154,7 @@ impl CGroupCollector {
         Ok(stats)
     }
 
-    fn read_memory_stats(&self, cgroup_path: &Path) -> Result<MemoryStats> {
+    pub fn read_memory_stats(&self, cgroup_path: &Path) -> Result<MemoryStats> {
         let mut memory_stats = MemoryStats::default();
 
         // Read memory.current
@@ -172,7 +172,7 @@ impl CGroupCollector {
         Ok(memory_stats)
     }
 
-    fn read_cpu_stats(&self, cgroup_path: &Path) -> Result<CpuStats> {
+    pub fn read_cpu_stats(&self, cgroup_path: &Path) -> Result<CpuStats> {
         let mut cpu_stats = CpuStats::default();
 
         if let Ok(content) = fs::read_to_string(cgroup_path.join("cpu.stat")) {
@@ -197,7 +197,7 @@ impl CGroupCollector {
         Ok(cpu_stats)
     }
 
-    fn read_io_stats(&self, cgroup_path: &Path) -> Result<IoStats> {
+    pub fn read_io_stats(&self, cgroup_path: &Path) -> Result<IoStats> {
         let mut io_stats = IoStats::default();
 
         if let Ok(content) = fs::read_to_string(cgroup_path.join("io.stat")) {
@@ -223,7 +223,7 @@ impl CGroupCollector {
         Ok(io_stats)
     }
 
-    fn read_pid_stats(&self, cgroup_path: &Path) -> Result<PidStats> {
+    pub fn read_pid_stats(&self, cgroup_path: &Path) -> Result<PidStats> {
         let mut pid_stats = PidStats::default();
 
         if let Ok(content) = fs::read_to_string(cgroup_path.join("pids.current")) {

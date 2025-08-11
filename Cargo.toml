@@ -30,3 +30,16 @@ hashbrown = "0.15"
 futures = "0.3"
 log = "0.4"
 env_logger = "0.11"
+
+[dev-dependencies]
+# Testing framework
+proptest = "1.4"           # Property-based testing
+tempfile = "3.8"           # Temporary files for testing
+assert_matches = "1.5"     # Pattern matching assertions
+pretty_assertions = "1.4"  # Better assertion output
+mockall = "0.12"           # Mocking framework
+criterion = { version = "0.5", features = ["html_reports"] } # Benchmarking
+
+[[bench]]
+name = "tree_benchmarks"
+harness = false
