@@ -356,7 +356,7 @@ impl CGroupTreeWidget {
         let list = List::new(items)
             .block(
                 Block::default()
-                    .title("cgroup Tree (↑↓: navigate, →: expand, ←: collapse, Enter/Space: toggle)")
+                    .title("cgroup Tree (↑↓: navigate, →: expand, ←: collapse, Enter/Space: toggle, d: delete)")
                     .borders(Borders::ALL)
                     .style(Style::default().fg(Color::Blue)),
             )

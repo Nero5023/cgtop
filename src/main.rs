@@ -131,6 +131,14 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
     use crossterm::event::{KeyCode, KeyModifiers};
 
     match key_event.code {
+        KeyCode::Char('d') => {
+            // Execute recursive directory removal
+            if let Some(selected) = &app.ui_state.tree_state.selected {
+                if let Some(node) = app.ui_state.tree_state.nodes.get(selected) {
+                    handle_delete_cgroup(&node.path);
+                }
+            }
+        }
         KeyCode::Char('r') => {
             log::info!("Manual refresh requested");
             // The collection thread will automatically provide updates
@@ -192,6 +200,28 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
         _ => {
             // Log unhandled keys for debugging
             log::debug!("Unhandled key: {:?}", key_event);
+        }
+    }
+}
+
+fn handle_delete_cgroup(cgroup_path: &str) {
+    use cgtop::utils::{is_safe_to_remove, remove_dir_recursive_safe};
+    
+    log::info!("Delete requested for cgroup: {}", cgroup_path);
+    
+    // Safety check
+    if !is_safe_to_remove(cgroup_path) {
+        log::error!("Refusing to delete unsafe path: {}", cgroup_path);
+        return;
+    }
+    
+    // Attempt to remove the directory
+    match remove_dir_recursive_safe(cgroup_path) {
+        Ok(_) => {
+            log::info!("Successfully deleted cgroup directory: {}", cgroup_path);
+        }
+        Err(e) => {
+            log::error!("Failed to delete cgroup directory {}: {}", cgroup_path, e);
         }
     }
 }

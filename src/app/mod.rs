@@ -25,6 +25,8 @@ pub struct UiState {
     pub tree_state: CGroupTreeState,
     pub selected_cgroup: Option<String>,
     pub scroll_offset: usize,
+    pub key_sequence: Vec<char>,
+    pub last_key_time: Option<std::time::Instant>,
 }
 
 impl UiState {
