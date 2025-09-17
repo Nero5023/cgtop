@@ -45,6 +45,7 @@ pub struct ResourceStats {
 pub struct MemoryStats {
     pub current: u64,
     pub max: Option<u64>,
+    pub high: Option<u64>,
     pub peak: u64,
     pub events: MemoryEvents,
     // memory.stat fields
@@ -198,6 +199,13 @@ impl CGroupCollector {
         if let Ok(content) = fs::read_to_string(cgroup_path.join("memory.max")) {
             if content.trim() != "max" {
                 memory_stats.max = content.trim().parse().ok();
+            }
+        }
+
+        // Read memory.high
+        if let Ok(content) = fs::read_to_string(cgroup_path.join("memory.high")) {
+            if content.trim() != "max" {
+                memory_stats.high = content.trim().parse().ok();
             }
         }
 

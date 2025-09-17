@@ -565,6 +565,18 @@ impl ResourceGraphWidget {
         ]));
         
         lines.push(Line::from(vec![
+            Span::styled("  High: ", Style::default().fg(Color::White)),
+            Span::styled(
+                stats.memory.high.map_or("unlimited".to_string(), |h| format_bytes(h)),
+                if stats.memory.high.is_some() { 
+                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD) 
+                } else { 
+                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) 
+                }
+            )
+        ]));
+        
+        lines.push(Line::from(vec![
             Span::styled("  Limit: ", Style::default().fg(Color::White)),
             Span::styled(
                 stats.memory.max.map_or("unlimited".to_string(), |m| format_bytes(m)),
