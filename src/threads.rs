@@ -1,10 +1,6 @@
 use anyhow::Result;
 use crossbeam::channel::{Receiver, Sender, unbounded};
-use std::{
-    path::PathBuf,
-    thread,
-    time::Duration,
-};
+use std::{path::PathBuf, thread, time::Duration};
 
 use crate::{
     collection::{
@@ -75,7 +71,10 @@ fn input_thread_worker(sender: Sender<CGroupEvent>) {
 }
 
 fn collection_thread_worker(sender: Sender<CGroupEvent>, cgroup_root: PathBuf) {
-    log::info!("Collection thread started with root: {}", cgroup_root.display());
+    log::info!(
+        "Collection thread started with root: {}",
+        cgroup_root.display()
+    );
 
     loop {
         // sleep for 200ms
@@ -131,7 +130,7 @@ fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
     let mut processes = HashMap::new();
 
     let root_str = cgroup_root.to_string_lossy();
-    
+
     // Create mock cgroup hierarchy data using the provided root
     let mock_paths = vec![
         root_str.to_string(),
@@ -143,8 +142,14 @@ fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
         format!("{}/user.slice/user-1000.slice", root_str),
         format!("{}/user.slice/user-1000.slice/session-2.scope", root_str),
         format!("{}/user.slice/user-1000.slice/user@1000.service", root_str),
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice", root_str),
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service", root_str),
+        format!(
+            "{}/user.slice/user-1000.slice/user@1000.service/app.slice",
+            root_str
+        ),
+        format!(
+            "{}/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service",
+            root_str
+        ),
         format!("{}/init.scope", root_str),
         format!("{}/machine.slice", root_str),
         format!("{}/machine.slice/docker-123456.scope", root_str),
@@ -193,7 +198,10 @@ fn create_mock_metrics(cgroup_root: &PathBuf) -> CGroupMetrics {
     );
     processes.insert(
         2000,
-        format!("{}/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service", root_str),
+        format!(
+            "{}/user.slice/user-1000.slice/user@1000.service/app.slice/firefox.service",
+            root_str
+        ),
     );
 
     CGroupMetrics {

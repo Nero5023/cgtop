@@ -28,7 +28,6 @@ use std::{
     time::Instant,
 };
 
-
 // ===================================Set up logging=============================================
 
 const PRIMARY_LOG_PATH: &str = "/var/log/cgtop.log";
@@ -215,6 +214,36 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
     use crossterm::event::{KeyCode, KeyModifiers};
 
     match key_event.code {
+        KeyCode::Char('D') => {
+            if let Some(selected_key) = &app.ui_state.tree_state.selected {
+                if let Some(node) = app.ui_state.tree_state.nodes.get(selected_key) {
+                    let parent_key = selected_key
+                        .rsplit_once('/')
+                        .map(|(parent, _)| parent.to_string())
+                        .unwrap_or_default();
+
+                    if parent_key.is_empty() {
+                        let root_path = app.ui_state.tree_state.root_path_string();
+                        let warning = format!("Cannot clean the root cgroup ({})", root_path);
+                        log::warn!("{}", warning);
+                        app.show_warning(warning);
+                    } else if let Some(parent_node) = app.ui_state.tree_state.nodes.get(&parent_key)
+                    {
+                        let parent_path = parent_node.path.clone();
+                        log::info!(
+                            "Clean parent requested for cgroup: {} (selected child: {})",
+                            parent_path,
+                            node.path
+                        );
+                        handle_delete_cgroup(app, &parent_path);
+                    } else {
+                        let warning = format!("Parent cgroup not found for {}", node.path);
+                        log::warn!("{}", warning);
+                        app.show_warning(warning);
+                    }
+                }
+            }
+        }
         KeyCode::Char('d') => {
             // Execute recursive directory removal
             if let Some(selected) = &app.ui_state.tree_state.selected {

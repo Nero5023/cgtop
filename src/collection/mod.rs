@@ -49,17 +49,17 @@ pub struct MemoryStats {
     pub peak: u64,
     pub events: MemoryEvents,
     // memory.stat fields
-    pub anon: u64,           // Anonymous memory (heap, stack)
-    pub file: u64,           // File cache memory
-    pub kernel_stack: u64,   // Kernel stack memory
-    pub slab: u64,           // Kernel data structures
-    pub sock: u64,           // Network buffer memory
-    pub pgfault: u64,        // Total page faults
-    pub pgmajfault: u64,     // Major page faults
-    pub inactive_anon: u64,  // Inactive anonymous memory
-    pub active_anon: u64,    // Active anonymous memory
-    pub inactive_file: u64,  // Inactive file cache
-    pub active_file: u64,    // Active file cache
+    pub anon: u64,          // Anonymous memory (heap, stack)
+    pub file: u64,          // File cache memory
+    pub kernel_stack: u64,  // Kernel stack memory
+    pub slab: u64,          // Kernel data structures
+    pub sock: u64,          // Network buffer memory
+    pub pgfault: u64,       // Total page faults
+    pub pgmajfault: u64,    // Major page faults
+    pub inactive_anon: u64, // Inactive anonymous memory
+    pub active_anon: u64,   // Active anonymous memory
+    pub inactive_file: u64, // Inactive file cache
+    pub active_file: u64,   // Active file cache
     // memory.pressure fields (PSI - Pressure Stall Information)
     pub pressure: Option<MemoryPressure>,
 }
@@ -76,15 +76,15 @@ pub struct MemoryEvents {
 #[derive(Debug, Clone, Default)]
 pub struct MemoryPressure {
     // PSI "some" metrics (at least one task delayed)
-    pub some_avg10: f64,    // 10-second average percentage
-    pub some_avg60: f64,    // 1-minute average percentage
-    pub some_avg300: f64,   // 5-minute average percentage
-    pub some_total: u64,    // Total time in microseconds
+    pub some_avg10: f64,  // 10-second average percentage
+    pub some_avg60: f64,  // 1-minute average percentage
+    pub some_avg300: f64, // 5-minute average percentage
+    pub some_total: u64,  // Total time in microseconds
     // PSI "full" metrics (all tasks delayed)
-    pub full_avg10: f64,    // 10-second average percentage
-    pub full_avg60: f64,    // 1-minute average percentage
-    pub full_avg300: f64,   // 5-minute average percentage
-    pub full_total: u64,    // Total time in microseconds
+    pub full_avg10: f64,  // 10-second average percentage
+    pub full_avg60: f64,  // 1-minute average percentage
+    pub full_avg300: f64, // 5-minute average percentage
+    pub full_total: u64,  // Total time in microseconds
 }
 
 #[derive(Debug, Clone, Default)]
@@ -227,9 +227,13 @@ impl CGroupCollector {
                         "sock" => memory_stats.sock = parts[1].parse().unwrap_or(0),
                         "pgfault" => memory_stats.pgfault = parts[1].parse().unwrap_or(0),
                         "pgmajfault" => memory_stats.pgmajfault = parts[1].parse().unwrap_or(0),
-                        "inactive_anon" => memory_stats.inactive_anon = parts[1].parse().unwrap_or(0),
+                        "inactive_anon" => {
+                            memory_stats.inactive_anon = parts[1].parse().unwrap_or(0)
+                        }
                         "active_anon" => memory_stats.active_anon = parts[1].parse().unwrap_or(0),
-                        "inactive_file" => memory_stats.inactive_file = parts[1].parse().unwrap_or(0),
+                        "inactive_file" => {
+                            memory_stats.inactive_file = parts[1].parse().unwrap_or(0)
+                        }
                         "active_file" => memory_stats.active_file = parts[1].parse().unwrap_or(0),
                         _ => {}
                     }
@@ -247,11 +251,11 @@ impl CGroupCollector {
 
     fn parse_pressure_stats(&self, content: &str) -> MemoryPressure {
         let mut pressure = MemoryPressure::default();
-        
+
         // Example memory.pressure format:
         // some avg10=0.00 avg60=0.00 avg300=0.00 total=0
         // full avg10=0.00 avg60=0.00 avg300=0.00 total=0
-        
+
         for line in content.lines() {
             let parts: Vec<&str> = line.split_whitespace().collect();
             if parts.len() >= 5 {
@@ -288,7 +292,7 @@ impl CGroupCollector {
                 }
             }
         }
-        
+
         pressure
     }
 
@@ -422,7 +426,9 @@ impl CGroupCollector {
                 cgroups
                     .into_iter()
                     .find(|cgroup| cgroup.hierarchy == 0) // cgroup v2 has hierarchy 0
-                    .map(|cgroup| format!("{}{}", self.cgroup_root.to_string_lossy(), cgroup.pathname))
+                    .map(|cgroup| {
+                        format!("{}{}", self.cgroup_root.to_string_lossy(), cgroup.pathname)
+                    })
                     .unwrap_or_else(|| self.cgroup_root.to_string_lossy().to_string())
             }
             Err(_) => self.cgroup_root.to_string_lossy().to_string(), // Fallback to root

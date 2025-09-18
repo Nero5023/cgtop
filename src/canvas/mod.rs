@@ -1,9 +1,9 @@
 use ratatui::{
+    Frame,
     layout::{Constraint, Direction, Layout, Rect},
     style::{Color, Modifier, Style},
     text::{Line, Span},
     widgets::{Block, Borders, Paragraph},
-    Frame,
 };
 
 use crate::app::App;
@@ -17,16 +17,16 @@ impl Canvas {
         let chunks = Layout::default()
             .direction(Direction::Vertical)
             .constraints([
-                Constraint::Length(3),  // Title bar
-                Constraint::Min(0),     // Main content
-                Constraint::Length(3),  // Status bar
+                Constraint::Length(3), // Title bar
+                Constraint::Min(0),    // Main content
+                Constraint::Length(3), // Status bar
             ])
             .split(f.area());
 
         Self::draw_title_bar(f, app, chunks[0]);
         Self::draw_main_content(f, app, chunks[1]);
         Self::draw_status_bar(f, app, chunks[2]);
-        
+
         // Render notifications over everything else
         render_notifications(f, &app.notifications, f.area());
     }
@@ -34,23 +34,26 @@ impl Canvas {
     fn draw_title_bar(f: &mut Frame, app: &mut App, area: Rect) {
         // Truncate long paths to keep title readable
         let root_path = app.config.cgroup_root.display().to_string();
-        
+
         let title_line = Line::from(vec![
             Span::styled(
                 "cgroup Monitor v0.1.0 - ",
-                Style::default().fg(Color::White).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::White)
+                    .add_modifier(Modifier::BOLD),
             ),
             Span::styled(
                 root_path,
-                Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
             ),
         ]);
-        let title = Paragraph::new(title_line)
-            .block(
-                Block::default()
-                    .borders(Borders::ALL)
-                    .style(Style::default().fg(Color::Blue)),
-            );
+        let title = Paragraph::new(title_line).block(
+            Block::default()
+                .borders(Borders::ALL)
+                .style(Style::default().fg(Color::Blue)),
+        );
         f.render_widget(title, area);
     }
 
@@ -63,7 +66,9 @@ impl Canvas {
         // Left side: cgroup tree
         {
             let tree_area = main_chunks[0];
-            app.ui_state.tree_state.adjust_scroll_for_area_height(tree_area.height as usize);
+            app.ui_state
+                .tree_state
+                .adjust_scroll_for_area_height(tree_area.height as usize);
             CGroupTreeWidget::draw(f, app, &app.ui_state.tree_state, tree_area);
         }
 
@@ -75,7 +80,8 @@ impl Canvas {
         let status_text = if let Some(ref data) = app.cgroup_data.metrics {
             format!(
                 "Last update: {:?} ago | cgroups: {} | Press 'q' to quit",
-                app.cgroup_data.last_update
+                app.cgroup_data
+                    .last_update
                     .map(|t| t.elapsed())
                     .unwrap_or_default(),
                 data.resource_usage.len()

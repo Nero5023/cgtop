@@ -250,7 +250,7 @@ impl CGroupTreeState {
         // This will be set based on the visible area height in the widget
         // For now, we'll assume a reasonable default and it can be adjusted by the widget
         let visible_height = 20; // Default assumption, will be overridden by widget
-        
+
         // Ensure the selected item is visible
         if selected_idx < self.scroll_offset {
             // Selected item is above visible area, scroll up
@@ -260,19 +260,19 @@ impl CGroupTreeState {
             self.scroll_offset = selected_idx.saturating_sub(visible_height - 1);
         }
     }
-    
+
     pub fn adjust_scroll_for_area_height(&mut self, area_height: usize) {
         if let Some(selected) = &self.selected {
             if let Some(selected_idx) = self.visible_nodes.iter().position(|n| n == selected) {
                 let visible_height = area_height.saturating_sub(2); // Account for borders
-                
+
                 // Ensure scroll offset keeps selected item visible
                 if selected_idx < self.scroll_offset {
                     self.scroll_offset = selected_idx;
                 } else if selected_idx >= self.scroll_offset + visible_height {
                     self.scroll_offset = selected_idx.saturating_sub(visible_height - 1);
                 }
-                
+
                 // Ensure scroll offset doesn't go beyond the list
                 if self.scroll_offset + visible_height > self.visible_nodes.len() {
                     self.scroll_offset = self.visible_nodes.len().saturating_sub(visible_height);
@@ -356,7 +356,7 @@ impl CGroupTreeWidget {
         let list = List::new(items)
             .block(
                 Block::default()
-                    .title("cgroup Tree (↑↓: navigate, →: expand, ←: collapse, Enter/Space: toggle, d: delete)")
+                    .title("cgroup Tree (↑↓: navigate, →: expand, ←: collapse, Enter/Space: toggle, d: delete, D: clean parent)")
                     .borders(Borders::ALL)
                     .style(Style::default().fg(Color::Blue)),
             )
@@ -500,34 +500,46 @@ impl ResourceGraphWidget {
                 if let Some(stats) = metrics.resource_usage.get(selected_path) {
                     Self::create_styled_resource_view(selected_path, stats)
                 } else {
-                    Text::from(vec![
-                        Line::from(vec![
-                            Span::styled("Selected cgroup not found", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
-                        ])
-                    ])
+                    Text::from(vec![Line::from(vec![Span::styled(
+                        "Selected cgroup not found",
+                        Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+                    )])])
                 }
             } else {
                 Text::from(vec![
-                    Line::from(vec![
-                        Span::styled("cgroup Monitor", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-                    ]),
+                    Line::from(vec![Span::styled(
+                        "cgroup Monitor",
+                        Style::default()
+                            .fg(Color::Cyan)
+                            .add_modifier(Modifier::BOLD),
+                    )]),
                     Line::from(""),
                     Line::from(vec![
-                        Span::styled("Total cgroups detected: ", Style::default().fg(Color::White)),
-                        Span::styled(format!("{}", metrics.resource_usage.len()), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                        Span::styled(
+                            "Total cgroups detected: ",
+                            Style::default().fg(Color::White),
+                        ),
+                        Span::styled(
+                            format!("{}", metrics.resource_usage.len()),
+                            Style::default()
+                                .fg(Color::Yellow)
+                                .add_modifier(Modifier::BOLD),
+                        ),
                     ]),
                     Line::from(""),
-                    Line::from(vec![
-                        Span::styled("Select a cgroup from the tree above to view detailed resource usage", Style::default().fg(Color::Gray))
-                    ])
+                    Line::from(vec![Span::styled(
+                        "Select a cgroup from the tree above to view detailed resource usage",
+                        Style::default().fg(Color::Gray),
+                    )]),
                 ])
             }
         } else {
-            Text::from(vec![
-                Line::from(vec![
-                    Span::styled("Loading resource data...", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-                ])
-            ])
+            Text::from(vec![Line::from(vec![Span::styled(
+                "Loading resource data...",
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            )])])
         };
 
         let paragraph = Paragraph::new(content)
@@ -542,87 +554,191 @@ impl ResourceGraphWidget {
         f.render_widget(paragraph, area);
     }
 
-    fn create_styled_resource_view(selected_path: &str, stats: &crate::collection::ResourceStats) -> Text<'static> {
+    fn create_styled_resource_view(
+        selected_path: &str,
+        stats: &crate::collection::ResourceStats,
+    ) -> Text<'static> {
         let mut lines = Vec::new();
-        
+
         // Header with cgroup path
         lines.push(Line::from(vec![
-            Span::styled("Selected: ", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
-            Span::styled(selected_path.to_string(), Style::default().fg(Color::Cyan))
+            Span::styled(
+                "Selected: ",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(selected_path.to_string(), Style::default().fg(Color::Cyan)),
         ]));
         lines.push(Line::from(""));
 
         // Memory Overview Section
-        lines.push(Line::from(vec![
-            Span::styled("MEMORY OVERVIEW", Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))
-        ]));
-        
+        lines.push(Line::from(vec![Span::styled(
+            "MEMORY OVERVIEW",
+            Style::default()
+                .fg(Color::Magenta)
+                .add_modifier(Modifier::BOLD),
+        )]));
+
         lines.push(Line::from(vec![
             Span::styled("  Current: ", Style::default().fg(Color::White)),
-            Span::styled(format_bytes(stats.memory.current), Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format_bytes(stats.memory.current),
+                Style::default()
+                    .fg(Color::Cyan)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" | Peak: ", Style::default().fg(Color::White)),
-            Span::styled(format_bytes(stats.memory.peak), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+            Span::styled(
+                format_bytes(stats.memory.peak),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
-        
+
         lines.push(Line::from(vec![
             Span::styled("  High: ", Style::default().fg(Color::White)),
             Span::styled(
-                stats.memory.high.map_or("unlimited".to_string(), |h| format_bytes(h)),
-                if stats.memory.high.is_some() { 
-                    Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD) 
-                } else { 
-                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) 
-                }
-            )
+                stats
+                    .memory
+                    .high
+                    .map_or("unlimited".to_string(), |h| format_bytes(h)),
+                if stats.memory.high.is_some() {
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD)
+                },
+            ),
         ]));
-        
+
         lines.push(Line::from(vec![
             Span::styled("  Limit: ", Style::default().fg(Color::White)),
             Span::styled(
-                stats.memory.max.map_or("unlimited".to_string(), |m| format_bytes(m)),
-                if stats.memory.max.is_some() { 
-                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD) 
-                } else { 
-                    Style::default().fg(Color::Green).add_modifier(Modifier::BOLD) 
-                }
-            )
+                stats
+                    .memory
+                    .max
+                    .map_or("unlimited".to_string(), |m| format_bytes(m)),
+                if stats.memory.max.is_some() {
+                    Style::default().fg(Color::Red).add_modifier(Modifier::BOLD)
+                } else {
+                    Style::default()
+                        .fg(Color::Green)
+                        .add_modifier(Modifier::BOLD)
+                },
+            ),
         ]));
         lines.push(Line::from(""));
 
         // Memory Breakdown Section
         lines.push(Line::from(vec![
-            Span::styled("MEMORY BREAKDOWN", Style::default().fg(Color::Blue).add_modifier(Modifier::BOLD)),
-            Span::styled(" (memory.stat)", Style::default().fg(Color::Gray))
+            Span::styled(
+                "MEMORY BREAKDOWN",
+                Style::default()
+                    .fg(Color::Blue)
+                    .add_modifier(Modifier::BOLD),
+            ),
+            Span::styled(" (memory.stat)", Style::default().fg(Color::Gray)),
         ]));
-        
-        Self::add_memory_item(&mut lines, "", "Anonymous (heap/stack)", stats.memory.anon, Color::Red);
-        Self::add_memory_item(&mut lines, "", "File Cache", stats.memory.file, Color::Green);
-        Self::add_memory_item(&mut lines, "", "Kernel Stack", stats.memory.kernel_stack, Color::Yellow);
-        Self::add_memory_item(&mut lines, "", "Slab (kernel structures)", stats.memory.slab, Color::Cyan);
-        Self::add_memory_item(&mut lines, "", "Socket Buffers", stats.memory.sock, Color::Magenta);
+
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Anonymous (heap/stack)",
+            stats.memory.anon,
+            Color::Red,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "File Cache",
+            stats.memory.file,
+            Color::Green,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Kernel Stack",
+            stats.memory.kernel_stack,
+            Color::Yellow,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Slab (kernel structures)",
+            stats.memory.slab,
+            Color::Cyan,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Socket Buffers",
+            stats.memory.sock,
+            Color::Magenta,
+        );
         lines.push(Line::from(""));
 
         // Memory Activity Section
-        lines.push(Line::from(vec![
-            Span::styled("MEMORY ACTIVITY", Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
-        ]));
-        
-        Self::add_memory_item(&mut lines, "", "Active Anonymous", stats.memory.active_anon, Color::Red);
-        Self::add_memory_item(&mut lines, "", "Inactive Anonymous", stats.memory.inactive_anon, Color::DarkGray);
-        Self::add_memory_item(&mut lines, "", "Active File Cache", stats.memory.active_file, Color::Green);
-        Self::add_memory_item(&mut lines, "", "Inactive File Cache", stats.memory.inactive_file, Color::DarkGray);
+        lines.push(Line::from(vec![Span::styled(
+            "MEMORY ACTIVITY",
+            Style::default()
+                .fg(Color::Yellow)
+                .add_modifier(Modifier::BOLD),
+        )]));
+
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Active Anonymous",
+            stats.memory.active_anon,
+            Color::Red,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Inactive Anonymous",
+            stats.memory.inactive_anon,
+            Color::DarkGray,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Active File Cache",
+            stats.memory.active_file,
+            Color::Green,
+        );
+        Self::add_memory_item(
+            &mut lines,
+            "",
+            "Inactive File Cache",
+            stats.memory.inactive_file,
+            Color::DarkGray,
+        );
         lines.push(Line::from(""));
 
         // Page Faults Section
-        lines.push(Line::from(vec![
-            Span::styled("PAGE FAULTS", Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
-        ]));
-        
+        lines.push(Line::from(vec![Span::styled(
+            "PAGE FAULTS",
+            Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+        )]));
+
         lines.push(Line::from(vec![
             Span::styled("  Total: ", Style::default().fg(Color::White)),
-            Span::styled(format!("{}", stats.memory.pgfault), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format!("{}", stats.memory.pgfault),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" | Major: ", Style::default().fg(Color::White)),
-            Span::styled(format!("{}", stats.memory.pgmajfault), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+            Span::styled(
+                format!("{}", stats.memory.pgmajfault),
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
         ]));
         lines.push(Line::from(""));
 
@@ -630,120 +746,223 @@ impl ResourceGraphWidget {
         if let Some(ref pressure) = stats.memory.pressure {
             let pressure_color = Self::get_pressure_color(pressure.some_avg10);
             lines.push(Line::from(vec![
-                Span::styled("MEMORY PRESSURE", Style::default().fg(pressure_color).add_modifier(Modifier::BOLD)),
-                Span::styled(" (PSI)", Style::default().fg(Color::Gray))
+                Span::styled(
+                    "MEMORY PRESSURE",
+                    Style::default()
+                        .fg(pressure_color)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" (PSI)", Style::default().fg(Color::Gray)),
             ]));
-            
-            lines.push(Line::from(vec![
-                Span::styled("  Some Tasks Delayed:", Style::default().fg(Color::White))
-            ]));
+
+            lines.push(Line::from(vec![Span::styled(
+                "  Some Tasks Delayed:",
+                Style::default().fg(Color::White),
+            )]));
             lines.push(Line::from(vec![
                 Span::styled("    10s: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{:.1}%", pressure.some_avg10), Style::default().fg(Self::get_pressure_color(pressure.some_avg10)).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{:.1}%", pressure.some_avg10),
+                    Style::default()
+                        .fg(Self::get_pressure_color(pressure.some_avg10))
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(" | 1m: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{:.1}%", pressure.some_avg60), Style::default().fg(Self::get_pressure_color(pressure.some_avg60)).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{:.1}%", pressure.some_avg60),
+                    Style::default()
+                        .fg(Self::get_pressure_color(pressure.some_avg60))
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(" | 5m: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{:.1}%", pressure.some_avg300), Style::default().fg(Self::get_pressure_color(pressure.some_avg300)).add_modifier(Modifier::BOLD))
+                Span::styled(
+                    format!("{:.1}%", pressure.some_avg300),
+                    Style::default()
+                        .fg(Self::get_pressure_color(pressure.some_avg300))
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
             lines.push(Line::from(vec![
                 Span::styled("    Total: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{}ms", pressure.some_total / 1000), Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+                Span::styled(
+                    format!("{}ms", pressure.some_total / 1000),
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
-            
-            lines.push(Line::from(vec![
-                Span::styled("  All Tasks Delayed:", Style::default().fg(Color::White))
-            ]));
+
+            lines.push(Line::from(vec![Span::styled(
+                "  All Tasks Delayed:",
+                Style::default().fg(Color::White),
+            )]));
             lines.push(Line::from(vec![
                 Span::styled("    10s: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{:.1}%", pressure.full_avg10), Style::default().fg(Self::get_pressure_color(pressure.full_avg10)).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{:.1}%", pressure.full_avg10),
+                    Style::default()
+                        .fg(Self::get_pressure_color(pressure.full_avg10))
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(" | 1m: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{:.1}%", pressure.full_avg60), Style::default().fg(Self::get_pressure_color(pressure.full_avg60)).add_modifier(Modifier::BOLD)),
+                Span::styled(
+                    format!("{:.1}%", pressure.full_avg60),
+                    Style::default()
+                        .fg(Self::get_pressure_color(pressure.full_avg60))
+                        .add_modifier(Modifier::BOLD),
+                ),
                 Span::styled(" | 5m: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{:.1}%", pressure.full_avg300), Style::default().fg(Self::get_pressure_color(pressure.full_avg300)).add_modifier(Modifier::BOLD))
+                Span::styled(
+                    format!("{:.1}%", pressure.full_avg300),
+                    Style::default()
+                        .fg(Self::get_pressure_color(pressure.full_avg300))
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
             lines.push(Line::from(vec![
                 Span::styled("    Total: ", Style::default().fg(Color::Gray)),
-                Span::styled(format!("{}ms", pressure.full_total / 1000), Style::default().fg(Color::White).add_modifier(Modifier::BOLD))
+                Span::styled(
+                    format!("{}ms", pressure.full_total / 1000),
+                    Style::default()
+                        .fg(Color::White)
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
         } else {
             lines.push(Line::from(vec![
-                Span::styled("MEMORY PRESSURE", Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD)),
-                Span::styled(" (PSI)", Style::default().fg(Color::Gray))
+                Span::styled(
+                    "MEMORY PRESSURE",
+                    Style::default()
+                        .fg(Color::Gray)
+                        .add_modifier(Modifier::BOLD),
+                ),
+                Span::styled(" (PSI)", Style::default().fg(Color::Gray)),
             ]));
-            lines.push(Line::from(vec![
-                Span::styled("  Not available (memory.pressure file not found)", Style::default().fg(Color::Gray))
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "  Not available (memory.pressure file not found)",
+                Style::default().fg(Color::Gray),
+            )]));
         }
         lines.push(Line::from(""));
 
         // Process Information
         if stats.cgroup_procs.is_empty() {
-            lines.push(Line::from(vec![
-                Span::styled("CGROUP PROCESSES", Style::default().fg(Color::Gray).add_modifier(Modifier::BOLD))
-            ]));
-            lines.push(Line::from(vec![
-                Span::styled("  No processes in this cgroup", Style::default().fg(Color::Gray))
-            ]));
+            lines.push(Line::from(vec![Span::styled(
+                "CGROUP PROCESSES",
+                Style::default()
+                    .fg(Color::Gray)
+                    .add_modifier(Modifier::BOLD),
+            )]));
+            lines.push(Line::from(vec![Span::styled(
+                "  No processes in this cgroup",
+                Style::default().fg(Color::Gray),
+            )]));
         } else {
-            lines.push(Line::from(vec![
-                Span::styled("CGROUP PROCESSES", Style::default().fg(Color::Green).add_modifier(Modifier::BOLD))
-            ]));
-            
+            lines.push(Line::from(vec![Span::styled(
+                "CGROUP PROCESSES",
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            )]));
+
             lines.push(Line::from(vec![
                 Span::styled("  Count: ", Style::default().fg(Color::White)),
-                Span::styled(format!("{}", stats.cgroup_procs.len()), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+                Span::styled(
+                    format!("{}", stats.cgroup_procs.len()),
+                    Style::default()
+                        .fg(Color::Yellow)
+                        .add_modifier(Modifier::BOLD),
+                ),
             ]));
-            
+
             let process_list = if stats.cgroup_procs.len() <= 10 {
-                stats.cgroup_procs.iter()
+                stats
+                    .cgroup_procs
+                    .iter()
                     .map(|pid| pid.to_string())
                     .collect::<Vec<_>>()
                     .join(", ")
             } else {
-                let first_ten = stats.cgroup_procs.iter()
+                let first_ten = stats
+                    .cgroup_procs
+                    .iter()
                     .take(10)
                     .map(|pid| pid.to_string())
                     .collect::<Vec<_>>()
                     .join(", ");
-                format!("{} ... (+{} more)", first_ten, stats.cgroup_procs.len() - 10)
+                format!(
+                    "{} ... (+{} more)",
+                    first_ten,
+                    stats.cgroup_procs.len() - 10
+                )
             };
-            
+
             lines.push(Line::from(vec![
                 Span::styled("  PIDs: ", Style::default().fg(Color::White)),
-                Span::styled(process_list, Style::default().fg(Color::Cyan))
+                Span::styled(process_list, Style::default().fg(Color::Cyan)),
             ]));
         }
         lines.push(Line::from(""));
 
         // Other Resources Section
-        lines.push(Line::from(vec![
-            Span::styled("OTHER RESOURCES", Style::default().fg(Color::Cyan).add_modifier(Modifier::BOLD))
-        ]));
-        
+        lines.push(Line::from(vec![Span::styled(
+            "OTHER RESOURCES",
+            Style::default()
+                .fg(Color::Cyan)
+                .add_modifier(Modifier::BOLD),
+        )]));
+
         lines.push(Line::from(vec![
             Span::styled("  CPU Time: ", Style::default().fg(Color::White)),
-            Span::styled(format_duration_usec(stats.cpu.usage_usec), Style::default().fg(Color::Yellow).add_modifier(Modifier::BOLD))
+            Span::styled(
+                format_duration_usec(stats.cpu.usage_usec),
+                Style::default()
+                    .fg(Color::Yellow)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
-        
+
         lines.push(Line::from(vec![
             Span::styled("  IO Read: ", Style::default().fg(Color::White)),
-            Span::styled(format_bytes(stats.io.rbytes), Style::default().fg(Color::Green).add_modifier(Modifier::BOLD)),
+            Span::styled(
+                format_bytes(stats.io.rbytes),
+                Style::default()
+                    .fg(Color::Green)
+                    .add_modifier(Modifier::BOLD),
+            ),
             Span::styled(" / Write: ", Style::default().fg(Color::White)),
-            Span::styled(format_bytes(stats.io.wbytes), Style::default().fg(Color::Red).add_modifier(Modifier::BOLD))
+            Span::styled(
+                format_bytes(stats.io.wbytes),
+                Style::default().fg(Color::Red).add_modifier(Modifier::BOLD),
+            ),
         ]));
-        
+
         lines.push(Line::from(vec![
             Span::styled("  PIDs: ", Style::default().fg(Color::White)),
-            Span::styled(format!("{}", stats.pids.current), Style::default().fg(Color::Magenta).add_modifier(Modifier::BOLD))
+            Span::styled(
+                format!("{}", stats.pids.current),
+                Style::default()
+                    .fg(Color::Magenta)
+                    .add_modifier(Modifier::BOLD),
+            ),
         ]));
 
         Text::from(lines)
     }
 
-    fn add_memory_item(lines: &mut Vec<Line<'static>>, _emoji: &str, label: &str, value: u64, color: Color) {
+    fn add_memory_item(
+        lines: &mut Vec<Line<'static>>,
+        _emoji: &str,
+        label: &str,
+        value: u64,
+        color: Color,
+    ) {
         lines.push(Line::from(vec![
             Span::styled(format!("  {}: ", label), Style::default().fg(Color::White)),
-            Span::styled(format_bytes(value), Style::default().fg(color).add_modifier(Modifier::BOLD))
+            Span::styled(
+                format_bytes(value),
+                Style::default().fg(color).add_modifier(Modifier::BOLD),
+            ),
         ]));
     }
 

@@ -103,23 +103,23 @@ impl App {
         self.input_receiver = Some(input_rx);
         self.data_receiver = Some(data_rx);
     }
-    
+
     pub fn show_error(&mut self, message: String) {
         self.notifications.add_error(message);
     }
-    
+
     pub fn show_success(&mut self, message: String) {
         self.notifications.add_success(message);
     }
-    
+
     pub fn show_warning(&mut self, message: String) {
         self.notifications.add_warning(message);
     }
-    
+
     pub fn show_info(&mut self, message: String) {
         self.notifications.add_info(message);
     }
-    
+
     pub fn update_notifications(&mut self) {
         self.notifications.update();
     }

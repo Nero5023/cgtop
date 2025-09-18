@@ -1,11 +1,11 @@
-use cgtop::collection::{ResourceStats, MemoryStats, CpuStats, IoStats, PidStats};
+use cgtop::collection::{CpuStats, IoStats, MemoryStats, PidStats, ResourceStats};
 use hashbrown::HashMap;
 
 /// Create mock resource stats for testing
 pub fn create_mock_resource_stats() -> ResourceStats {
     ResourceStats {
         memory: MemoryStats {
-            current: 1024 * 1024, // 1MB
+            current: 1024 * 1024,        // 1MB
             max: Some(1024 * 1024 * 10), // 10MB
             ..Default::default()
         },
@@ -32,7 +32,7 @@ pub fn create_mock_resource_stats() -> ResourceStats {
 pub fn create_test_cgroup_paths() -> HashMap<String, ResourceStats> {
     let paths = vec![
         "/sys/fs/cgroup",
-        "/sys/fs/cgroup/system.slice", 
+        "/sys/fs/cgroup/system.slice",
         "/sys/fs/cgroup/system.slice/systemd-logind.service",
         "/sys/fs/cgroup/system.slice/ssh.service",
         "/sys/fs/cgroup/system.slice/nginx.service",
@@ -44,7 +44,8 @@ pub fn create_test_cgroup_paths() -> HashMap<String, ResourceStats> {
         "/sys/fs/cgroup/init.scope",
     ];
 
-    paths.into_iter()
+    paths
+        .into_iter()
         .enumerate()
         .map(|(i, path)| {
             let mut stats = create_mock_resource_stats();
@@ -66,7 +67,8 @@ pub fn create_simple_cgroup_paths() -> HashMap<String, ResourceStats> {
         "/sys/fs/cgroup/test1/child2",
     ];
 
-    paths.into_iter()
+    paths
+        .into_iter()
         .map(|path| (path.to_string(), create_mock_resource_stats()))
         .collect()
 }
