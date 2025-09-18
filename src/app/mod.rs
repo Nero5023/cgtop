@@ -1,4 +1,5 @@
 use crate::collection::CGroupMetrics;
+use crate::notifications::NotificationManager;
 use crate::widgets::CGroupTreeState;
 use crossbeam::channel::Receiver;
 use std::path::PathBuf;
@@ -9,6 +10,7 @@ pub struct App {
     pub ui_state: UiState,
     pub config: Config,
     pub filters: FilterState,
+    pub notifications: NotificationManager,
     pub input_receiver: Option<Receiver<InputEvent>>,
     pub data_receiver: Option<Receiver<CGroupMetrics>>,
 }
@@ -72,6 +74,7 @@ impl App {
             ui_state: UiState::default(),
             config: Config::default(),
             filters: FilterState::default(),
+            notifications: NotificationManager::new(),
             input_receiver: None,
             data_receiver: None,
         }
@@ -86,6 +89,7 @@ impl App {
             ui_state: UiState::new(config.cgroup_root.clone()),
             config,
             filters: FilterState::default(),
+            notifications: NotificationManager::new(),
             input_receiver: None,
             data_receiver: None,
         }
@@ -98,5 +102,25 @@ impl App {
     ) {
         self.input_receiver = Some(input_rx);
         self.data_receiver = Some(data_rx);
+    }
+    
+    pub fn show_error(&mut self, message: String) {
+        self.notifications.add_error(message);
+    }
+    
+    pub fn show_success(&mut self, message: String) {
+        self.notifications.add_success(message);
+    }
+    
+    pub fn show_warning(&mut self, message: String) {
+        self.notifications.add_warning(message);
+    }
+    
+    pub fn show_info(&mut self, message: String) {
+        self.notifications.add_info(message);
+    }
+    
+    pub fn update_notifications(&mut self) {
+        self.notifications.update();
     }
 }

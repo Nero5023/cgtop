@@ -2,6 +2,7 @@ mod app;
 mod canvas;
 mod collection;
 mod events;
+mod notifications;
 mod threads;
 mod widgets;
 use events::CGroupEvent;
@@ -87,6 +88,9 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
     let event_rx = event_threads.start(app.config.cgroup_root.clone())?;
 
     loop {
+        // Update notifications (remove expired ones)
+        app.update_notifications();
+        
         terminal.draw(|f| Canvas::draw(f, app))?;
 
         match event_rx.recv() {
@@ -135,7 +139,8 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
             // Execute recursive directory removal
             if let Some(selected) = &app.ui_state.tree_state.selected {
                 if let Some(node) = app.ui_state.tree_state.nodes.get(selected) {
-                    handle_delete_cgroup(&node.path);
+                    let path = node.path.clone();
+                    handle_delete_cgroup(app, &path);
                 }
             }
         }
@@ -204,24 +209,30 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
     }
 }
 
-fn handle_delete_cgroup(cgroup_path: &str) {
+fn handle_delete_cgroup(app: &mut app::App, cgroup_path: &str) {
     use cgtop::utils::{is_safe_to_remove, remove_dir_recursive_safe};
     
     log::info!("Delete requested for cgroup: {}", cgroup_path);
     
     // Safety check
     if !is_safe_to_remove(cgroup_path) {
+        let error_msg = format!("Unsafe path: {}", cgroup_path);
         log::error!("Refusing to delete unsafe path: {}", cgroup_path);
+        app.show_error(error_msg);
         return;
     }
     
     // Attempt to remove the directory
     match remove_dir_recursive_safe(cgroup_path) {
         Ok(_) => {
+            let success_msg = format!("Deleted: {}", cgroup_path);
             log::info!("Successfully deleted cgroup directory: {}", cgroup_path);
+            app.show_success(success_msg);
         }
         Err(e) => {
+            let error_msg = format!("Delete failed: {}", e);
             log::error!("Failed to delete cgroup directory {}: {}", cgroup_path, e);
+            app.show_error(error_msg);
         }
     }
 }

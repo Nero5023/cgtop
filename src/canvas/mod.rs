@@ -7,6 +7,7 @@ use ratatui::{
 };
 
 use crate::app::App;
+use crate::notifications::render_notifications;
 use crate::widgets::{CGroupTreeWidget, ResourceGraphWidget};
 
 pub struct Canvas;
@@ -25,6 +26,9 @@ impl Canvas {
         Self::draw_title_bar(f, app, chunks[0]);
         Self::draw_main_content(f, app, chunks[1]);
         Self::draw_status_bar(f, app, chunks[2]);
+        
+        // Render notifications over everything else
+        render_notifications(f, &app.notifications, f.area());
     }
 
     fn draw_title_bar(f: &mut Frame, app: &mut App, area: Rect) {
