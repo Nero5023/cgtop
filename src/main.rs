@@ -8,7 +8,7 @@ mod widgets;
 use events::CGroupEvent;
 use threads::EventThreads;
 
-use anyhow::Result;
+use anyhow::{Context, Result};
 use app::App;
 use canvas::Canvas;
 use clap::Parser;
@@ -17,12 +17,92 @@ use crossterm::{
     execute,
     terminal::{EnterAlternateScreen, LeaveAlternateScreen, disable_raw_mode, enable_raw_mode},
 };
+use env_logger::{Env, Target, WriteStyle};
+use log::LevelFilter;
 use ratatui::{Terminal, backend::CrosstermBackend};
 use std::{
+    env,
+    fs::OpenOptions,
     io,
-    path::PathBuf,
+    path::{Path, PathBuf},
     time::Instant,
 };
+
+
+// ===================================Set up logging=============================================
+
+const PRIMARY_LOG_PATH: &str = "/var/log/cgtop.log";
+
+fn fallback_log_path() -> PathBuf {
+    env::var_os("XDG_STATE_HOME")
+        .map(PathBuf::from)
+        .or_else(|| env::var_os("HOME").map(|home| PathBuf::from(home).join(".local/state")))
+        .unwrap_or_else(env::temp_dir)
+        .join("cgtop")
+        .join("cgtop.log")
+}
+
+fn open_log_file(path: &Path) -> std::io::Result<std::fs::File> {
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+
+    OpenOptions::new().create(true).append(true).open(path)
+}
+
+fn init_logging(verbose: bool) -> Result<PathBuf> {
+    let primary_path = PathBuf::from(PRIMARY_LOG_PATH);
+
+    let (log_file, resolved_path, used_fallback) = match open_log_file(&primary_path) {
+        Ok(file) => (file, primary_path.clone(), false),
+        Err(primary_error) => {
+            let fallback_path = fallback_log_path();
+            let file = open_log_file(&fallback_path).with_context(|| {
+                format!(
+                    "failed to open primary log file {} (error: {}) and fallback {}",
+                    primary_path.display(),
+                    primary_error,
+                    fallback_path.display()
+                )
+            })?;
+
+            (file, fallback_path, true)
+        }
+    };
+
+    let default_filter = if verbose { "debug" } else { "info" };
+    let env = Env::default().default_filter_or(default_filter);
+    let mut builder = env_logger::Builder::from_env(env);
+
+    if env::var_os("RUST_LOG").is_none() {
+        builder.filter_level(if verbose {
+            LevelFilter::Debug
+        } else {
+            LevelFilter::Info
+        });
+    }
+
+    builder
+        .write_style(WriteStyle::Never)
+        .format_timestamp_secs()
+        .target(Target::Pipe(Box::new(log_file)));
+
+    builder.init();
+
+    if used_fallback {
+        log::warn!(
+            "Falling back to log file at {} because {} was unavailable",
+            resolved_path.display(),
+            PRIMARY_LOG_PATH
+        );
+    } else {
+        log::info!("Logging to {}", resolved_path.display());
+    }
+
+    Ok(resolved_path)
+}
+
+// ===================================================================================================================
 
 // we need to normalize the path to remove the trailing slash
 // because the path is used as a prefix for other paths
@@ -47,7 +127,7 @@ struct Cli {
 fn main() -> Result<()> {
     let cli = Cli::parse();
 
-    env_logger::init();
+    init_logging(cli.verbose)?;
 
     log::info!(
         "cgroup TUI Monitor starting with root path: {}",
@@ -90,7 +170,7 @@ fn run_app(terminal: &mut Terminal<CrosstermBackend<io::Stdout>>, app: &mut App)
     loop {
         // Update notifications (remove expired ones)
         app.update_notifications();
-        
+
         terminal.draw(|f| Canvas::draw(f, app))?;
 
         match event_rx.recv() {
@@ -211,9 +291,9 @@ fn handle_key_event(app: &mut App, key_event: crossterm::event::KeyEvent) {
 
 fn handle_delete_cgroup(app: &mut app::App, cgroup_path: &str) {
     use cgtop::utils::{is_safe_to_remove, remove_dir_recursive_safe};
-    
+
     log::info!("Delete requested for cgroup: {}", cgroup_path);
-    
+
     // Safety check
     if !is_safe_to_remove(cgroup_path) {
         let error_msg = format!("Unsafe path: {}", cgroup_path);
@@ -221,7 +301,7 @@ fn handle_delete_cgroup(app: &mut app::App, cgroup_path: &str) {
         app.show_error(error_msg);
         return;
     }
-    
+
     // Attempt to remove the directory
     match remove_dir_recursive_safe(cgroup_path) {
         Ok(_) => {
